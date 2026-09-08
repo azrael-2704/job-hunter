@@ -1,0 +1,11 @@
+job-hunter/
+__pycache__/
+*.pyc
+.env
+.cache
+.pytest_cache/
+*.db
+database/*.db
+database/screenshots/
+.DS_Store
+upstream/

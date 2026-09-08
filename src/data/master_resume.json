@@ -1,0 +1,52 @@
+{
+  "name": "Amartya Dev",
+  "title": "Senior AI Systems Engineer",
+  "email": "amartya.test@gmail.com",
+  "phone": "+91 98765 43210",
+  "location": "Bengaluru, India (Open to Remote / Relocation)",
+  "linkedin": "https://linkedin.com/in/amartya-dev",
+  "github": "https://github.com/amartya-dev",
+  "portfolio": "https://amartya.dev",
+  "summary": "Specialized in autonomous multi-agent systems, high-throughput Python backends, and deterministic LLM pipelines with zero hallucination. Proven track record in orchestrating distributed workflows and deploying containerized microservices.",
+  "skills": [
+    "Python",
+    "Docker",
+    "FastAPI",
+    "PostgreSQL",
+    "Redis",
+    "LangGraph"
+  ],
+  "experience": [
+    {
+      "company": "Azrael AI Systems",
+      "role": "Lead AI Systems Engineer",
+      "location": "Bengaluru, India",
+      "period": "2023 - Present",
+      "bullets": [
+        "Architected deterministic multi-agent state machines using LangGraph with queue reducers, reducing task latency by 45%.",
+        "Engineered scalable backend microservices in FastAPI with PostgreSQL and Redis caching, serving 50k+ daily queries."
+      ]
+    },
+    {
+      "company": "CloudScale Technologies",
+      "role": "Backend Software Developer",
+      "location": "Remote",
+      "period": "2021 - 2023",
+      "bullets": [
+        "Built resilient ETL pipelines and automated scraping microservices containerized with Docker.",
+        "Optimized relational database queries and indexed large-scale data stores, achieving sub-50ms API response times."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Bachelor of Technology in Computer Science & Engineering",
+      "institution": "National Institute of Technology",
+      "year": "2021"
+    }
+  ],
+  "raw_resume_text": "# AMARTYA DEV\nSenior AI Systems Engineer | Bengaluru, India\n\n## Core Competencies\nPython, FastAPI, Docker, SQL, Redis, LangGraph\n\n## Professional Experience\n### Lead AI Systems Engineer - Azrael AI Systems\n- Built autonomous multi-agent pipelines with LangGraph\n- Deployed production backend microservices in FastAPI\n",
+  "target_query": "Lead AI Engineer",
+  "target_location": "India",
+  "min_salary": "30 LPA"
+}

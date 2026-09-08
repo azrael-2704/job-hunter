@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous Job Hunter | Agentic Pipeline Dashboard</title>
+  <meta name="description" content="Autonomous Job Search & Recruiter Outreach Platform powered by LangGraph, Reflection Loops, and Deterministic Guardrails.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- TOP NAVIGATION -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">JOB HUNTER <span class="badge-agent">AGENTIC</span></h1>
+          <p class="brand-sub">LangGraph State Machine • Deterministic Truth Guardrails</p>
+        </div>
+      </div>
+
+      <div class="nav-controls">
+        <div class="system-health">
+          <span class="pulse-dot"></span>
+          <span id="system-status">Pipeline Idle</span>
+        </div>
+        <button type="button" id="btn-open-interview" class="btn btn-secondary btn-sm" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25)); border: 1px solid rgba(99, 102, 241, 0.5); color: #c7d2fe; font-weight: 700;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <span>🎙️ Start Profile Interview</span>
+        </button>
+        <div class="candidate-pill">
+          <span class="user-avatar">AM</span>
+          <div>
+            <div class="user-name">Amartya</div>
+            <div class="user-skills">Python • Docker • FastAPI • SQL</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- SEARCH & RUN CONTROL BAR -->
+    <section class="control-panel">
+      <form id="pipeline-form" class="run-form">
+        <div class="input-group">
+          <label for="search-query">Target Role</label>
+          <input type="text" id="search-query" value="AI Engineer" placeholder="e.g. AI Engineer, Backend Lead" required>
+        </div>
+        <div class="input-group">
+          <label for="search-location">Location</label>
+          <input type="text" id="search-location" value="India" placeholder="e.g. India, Bengaluru, Remote" list="location-suggestions" required>
+          <datalist id="location-suggestions">
+            <option value="India">
+            <option value="Bengaluru, Karnataka, India">
+            <option value="Delhi NCR, India">
+            <option value="Mumbai, Maharashtra, India">
+            <option value="Hyderabad, Telangana, India">
+            <option value="Pune, Maharashtra, India">
+            <option value="Remote (India)">
+            <option value="Remote">
+          </datalist>
+        </div>
+        <div class="input-group">
+          <label for="search-salary">Min Salary Expectation</label>
+          <input type="text" id="search-salary" value="25 LPA" placeholder="e.g. 25 LPA, 30 LPA, $120k">
+        </div>
+        <div class="input-group input-group-sm">
+          <label for="search-limit">Scrape Limit</label>
+          <select id="search-limit">
+            <option value="2" selected>2 Jobs</option>
+            <option value="5">5 Jobs</option>
+            <option value="10">10 Jobs</option>
+          </select>
+        </div>
+        <button type="submit" id="btn-run-pipeline" class="btn btn-primary">
+          <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span id="btn-run-text">Run Pipeline</span>
+        </button>
+        <button type="button" id="btn-verify-ats" class="btn btn-secondary" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fcd34d; font-size: 0.85rem;" title="Runs Playwright on a real form fixture to test and capture a verified filled screenshot">
+          🧪 Test &amp; Verify ATS Autofill
+        </button>
+      </form>
+    </section>
+
+    <!-- METRICS FUNNEL BAR -->
+    <section class="funnel-metrics">
+      <div class="kpi-card">
+        <div class="kpi-label">Discovered</div>
+        <div class="kpi-value" id="kpi-discovered">0</div>
+        <div class="kpi-sub">Live LinkedIn Scrapes</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Qualified (Fit &ge; 60)</div>
+        <div class="kpi-value text-accent" id="kpi-qualified">0</div>
+        <div class="kpi-sub">Matched Skills Filter</div>
+      </div>
+      <div class="kpi-card highlight-card">
+        <div class="kpi-label">Human Review Queue</div>
+        <div class="kpi-value text-warning" id="kpi-approval">0</div>
+        <div class="kpi-sub">Tailored • Pending Submit</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Applications Submitted</div>
+        <div class="kpi-value text-success" id="kpi-applied">0</div>
+        <div class="kpi-sub">Approved & Locked</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Recruiter Outreach</div>
+        <div class="kpi-value text-cyan" id="kpi-outreach">0</div>
+        <div class="kpi-sub">Inferred & Scheduled</div>
+      </div>
+    </section>
+
+    <!-- WORKSPACE MAIN GRID -->
+    <main class="main-grid">
+      <!-- LEFT COLUMN: HUMAN APPROVAL GATE -->
+      <section class="panel panel-left">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <h2>Human-in-the-Loop Approval Queue</h2>
+            <span class="queue-counter" id="approval-count-badge">0 Pending</span>
+          </div>
+          <p class="panel-desc">Review tailored application packages. Approving automatically triggers recruiter email enrichment and outreach scheduling.</p>
+        </div>
+
+        <div id="approval-queue-list" class="cards-container">
+          <div class="empty-state">
+            <div class="empty-icon">📂</div>
+            <h3>Approval Queue is Empty</h3>
+            <p>Click "Run Pipeline" to scrape live jobs, score fit, and tailor applications through our Reflection Loop.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: MULTI-TAB WORKSPACE -->
+      <section class="panel panel-right">
+        <div class="tabs-nav">
+          <button class="tab-btn" data-tab="tab-profile" id="tab-btn-profile">📄 My Resume & Profile</button>
+          <button class="tab-btn active" data-tab="tab-outreach" id="tab-btn-outreach">Outreach Sequences</button>
+          <button class="tab-btn" data-tab="tab-interview" id="tab-btn-interview">🎙️ Career Blueprint</button>
+          <button class="tab-btn" data-tab="tab-recruiters" id="tab-btn-recruiters">Enriched Recruiters</button>
+          <button class="tab-btn" data-tab="tab-qualified" id="tab-btn-qualified">Discovered Postings</button>
+          <button class="tab-btn" data-tab="tab-telemetry" id="tab-btn-telemetry">Telemetry Stream</button>
+        </div>
+
+        <!-- TAB 0: CANDIDATE PROFILE & RESUME INGESTION -->
+        <div class="tab-content" id="tab-profile">
+          <div class="profile-box">
+            <div class="raw-format-banner">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span><strong>Strict Format Lock:</strong> Paste your resume in your current format. Tailoring modifies only relevant bullets in-place — preserving your exact headers, order, and styling.</span>
+            </div>
+
+            <div class="profile-grid-2">
+              <div>
+                <label class="field-label" for="profile-name">Full Name</label>
+                <input type="text" id="profile-name" class="field-input" placeholder="e.g. Amartya Dev">
+              </div>
+              <div>
+                <label class="field-label" for="profile-title">Professional Title</label>
+                <input type="text" id="profile-title" class="field-input" placeholder="e.g. Senior AI Systems Engineer">
+              </div>
+            </div>
+
+            <div class="profile-grid-3">
+              <div>
+                <label class="field-label" for="profile-email">Email Address</label>
+                <input type="email" id="profile-email" class="field-input" placeholder="e.g. amartya.dev@gmail.com">
+              </div>
+              <div>
+                <label class="field-label" for="profile-phone">Phone Number</label>
+                <input type="text" id="profile-phone" class="field-input" placeholder="e.g. +91 98765 43210">
+              </div>
+              <div>
+                <label class="field-label" for="profile-location">Current Location</label>
+                <input type="text" id="profile-location" class="field-input" placeholder="e.g. Bengaluru, India">
+              </div>
+            </div>
+
+            <div class="profile-grid-3">
+              <div>
+                <label class="field-label" for="profile-linkedin">LinkedIn URL</label>
+                <input type="url" id="profile-linkedin" class="field-input" placeholder="https://linkedin.com/in/...">
+              </div>
+              <div>
+                <label class="field-label" for="profile-github">GitHub URL</label>
+                <input type="url" id="profile-github" class="field-input" placeholder="https://github.com/...">
+              </div>
+              <div>
+                <label class="field-label" for="profile-portfolio">Portfolio / Website</label>
+                <input type="url" id="profile-portfolio" class="field-input" placeholder="https://...">
+              </div>
+            </div>
+
+            <div>
+              <label class="field-label" for="profile-skills">Core Verified Skills (Whitelist for Truth Guardrail)</label>
+              <input type="text" id="profile-skills" class="field-input" placeholder="Python, FastAPI, Docker, SQL, PostgreSQL, Redis, LangGraph, LangChain">
+              <span style="font-size:0.7rem; color:var(--text-dim); margin-top:2px; display:block;">The Zero-Hallucination Guardrail strictly forbids the AI from claiming any skill not in this list.</span>
+            </div>
+
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                <div>
+                  <label class="field-label" for="profile-raw-resume" style="margin-bottom:0;">Your Master Resume (Current Format)</label>
+                  <span style="font-size:0.7rem; color:#a5b4fc;">Markdown / Plain Text Format Supported • 100% Layout Preserved</span>
+                </div>
+                <button type="button" id="btn-refine-resume" class="btn btn-secondary btn-sm" style="background: rgba(139, 92, 246, 0.18); border: 1px solid rgba(139, 92, 246, 0.45); color: #c4b5fd; font-size: 0.78rem;">
+                  ✨ AI Polish &amp; Refine Master Resume
+                </button>
+              </div>
+              <textarea id="profile-raw-resume" class="field-textarea" rows="9" placeholder="Paste your full master resume here in your current format..."></textarea>
+              <div id="refine-audit-box" style="display:none; margin-top:8px; background:rgba(0,0,0,0.4); border:1px solid rgba(139, 92, 246, 0.3); border-radius:6px; padding:10px; font-size:0.78rem;"></div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <button type="button" id="btn-save-profile" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>Save Profile &amp; Resume Format</span>
+              </button>
+              <span id="profile-save-status" style="font-size:0.8rem; color:#10b981;"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 1: OUTREACH SEQUENCES -->
+        <div class="tab-content active" id="tab-outreach">
+          <div id="outreach-list" class="outreach-container">
+            <div class="empty-state-sm">No outreach emails scheduled yet. Approve a job to trigger automated sequence.</div>
+          </div>
+        </div>
+
+        <!-- TAB 1.5: AI CAREER INTERVIEW -->
+        <div class="tab-content" id="tab-interview">
+          <div class="enrich-probe-box">
+            <h4>🎙️ AI Career Profiler & Interview</h4>
+            <p style="font-size:0.8rem; color:#9ca3af; margin-bottom:12px;">
+              Answer these 3 questions or paste your experience. The AI analyzes your background, discovers the most lucrative roles, and generates high-intent search queries.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div>
+                <label style="font-size:0.75rem; color:#9ca3af; font-weight:600;">KEY PROJECTS YOU HAVE BUILT</label>
+                <textarea id="interview-projects" rows="2" style="width:100%; background:var(--bg-input); color:white; border:1px solid var(--border-subtle); border-radius:6px; padding:8px; font-family:inherit; font-size:0.85rem;" placeholder="e.g. Built automated agents, high-throughput microservices in Python with Docker and Redis..."></textarea>
+              </div>
+              <div>
+                <label style="font-size:0.75rem; color:#9ca3af; font-weight:600;">YOUR CORE TECHNOLOGIES & TOOLS</label>
+                <input type="text" id="interview-tech" style="width:100%; background:var(--bg-input); color:white; border:1px solid var(--border-subtle); border-radius:6px; padding:8px; font-family:inherit; font-size:0.85rem;" value="Python, FastAPI, Docker, PostgreSQL, Redis, LangGraph">
+              </div>
+              <div>
+                <label style="font-size:0.75rem; color:#9ca3af; font-weight:600;">IDEAL ROLE & SENIORITY</label>
+                <input type="text" id="interview-role" style="width:100%; background:var(--bg-input); color:white; border:1px solid var(--border-subtle); border-radius:6px; padding:8px; font-family:inherit; font-size:0.85rem;" value="AI Engineer / Backend Developer">
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <label style="font-size:0.75rem; color:#9ca3af; font-weight:600;">LOCATION PREFERENCE</label>
+                  <input type="text" id="interview-location" style="width:100%; background:var(--bg-input); color:white; border:1px solid var(--border-subtle); border-radius:6px; padding:8px; font-family:inherit; font-size:0.85rem;" value="India" placeholder="e.g. India, Bengaluru, Remote">
+                </div>
+                <div>
+                  <label style="font-size:0.75rem; color:#9ca3af; font-weight:600;">MIN SALARY EXPECTATION</label>
+                  <input type="text" id="interview-salary" style="width:100%; background:var(--bg-input); color:white; border:1px solid var(--border-subtle); border-radius:6px; padding:8px; font-family:inherit; font-size:0.85rem;" value="25 LPA" placeholder="e.g. 25 LPA, $120k">
+                </div>
+              </div>
+              <button id="btn-run-interview" class="btn btn-primary btn-sm" style="align-self:flex-start;">
+                Generate Career Blueprint & Scrape Targets
+              </button>
+            </div>
+            <div id="interview-results" style="margin-top:14px;"></div>
+          </div>
+        </div>
+
+        <!-- TAB 2: ENRICHED RECRUITERS -->
+        <div class="tab-content" id="tab-recruiters">
+          <div class="enrich-probe-box">
+            <h4>Quick Recruiter Domain Probe</h4>
+            <div class="probe-row">
+              <input type="text" id="probe-name" placeholder="Recruiter Full Name (e.g. Priya Sharma)">
+              <input type="text" id="probe-domain" placeholder="Domain (e.g. razorpay.com)">
+              <button id="btn-probe" class="btn btn-secondary">Probe Patterns</button>
+            </div>
+            <div id="probe-results" class="probe-results-box"></div>
+          </div>
+          <div id="recruiters-list" class="cards-container"></div>
+        </div>
+
+        <!-- TAB 3: DISCOVERED & QUALIFIED JOBS -->
+        <div class="tab-content" id="tab-qualified">
+          <div id="qualified-list" class="cards-container">
+            <div class="empty-state-sm">No discovered postings loaded yet.</div>
+          </div>
+        </div>
+
+        <!-- TAB 4: TELEMETRY STREAM -->
+        <div class="tab-content" id="tab-telemetry">
+          <div class="telemetry-terminal" id="telemetry-stream">
+            <div class="log-line text-muted">[System] Ready. Awaiting trigger...</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- CANDIDATE ONBOARDING & PROFILE INTERVIEW MODAL -->
+  <div class="modal-backdrop" id="modal-interview">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🎙️</span>
+          <span>Candidate Onboarding &amp; AI Profile Interview</span>
+        </div>
+        <button type="button" class="modal-close-btn" id="modal-interview-close">&times;</button>
+      </div>
+      <form id="form-onboard-interview" class="modal-body">
+        <p style="font-size: 0.82rem; color: #94a3b8; line-height: 1.45; margin-bottom: 4px;">
+          Paste your current master resume in your existing format and answer 3 quick questions. The AI agent will auto-populate your candidate profile, calibrate the Zero-Hallucination Truth Guardrail whitelist, and preserve 100% of your current resume structure.
+        </p>
+        
+        <div>
+          <label class="field-label" for="interview-modal-resume">1. PASTE YOUR CURRENT MASTER RESUME (FORMAT FULLY PRESERVED)</label>
+          <textarea id="interview-modal-resume" class="field-textarea" rows="6" placeholder="Paste your markdown, text, or bulleted resume here. Your exact formatting, headers, and order will be locked in..." required></textarea>
+        </div>
+
+        <div>
+          <label class="field-label" for="interview-modal-projects">2. KEY PROJECTS &amp; PRODUCTION IMPACT (INTERVIEW Q1)</label>
+          <textarea id="interview-modal-projects" class="field-textarea" rows="3" placeholder="What high-scale systems or AI projects have you built? Include metrics or throughput (e.g. built microservices with Python, Docker, Redis serving 10k req/s)..."></textarea>
+        </div>
+
+        <div>
+          <label class="field-label" for="interview-modal-tech">3. CORE TECHNOLOGIES &amp; VERIFIED SKILLS (INTERVIEW Q2 - WHITELIST)</label>
+          <input type="text" id="interview-modal-tech" class="field-input" placeholder="e.g. Python, FastAPI, Docker, PostgreSQL, Redis, LangGraph, LangChain" value="Python, FastAPI, Docker, PostgreSQL, Redis, LangGraph" required>
+          <span style="font-size:0.7rem; color:var(--text-dim); margin-top:2px; display:block;">These verified skills form the Truth Guardrail whitelist. The AI cannot hallucinate unlisted skills.</span>
+        </div>
+
+        <div class="profile-grid-3">
+          <div>
+            <label class="field-label" for="interview-modal-role">4. TARGET ROLE &amp; LEVEL (Q3)</label>
+            <input type="text" id="interview-modal-role" class="field-input" placeholder="e.g. Senior AI Engineer" value="AI Engineer" required>
+          </div>
+          <div>
+            <label class="field-label" for="interview-modal-location">PREFERRED LOCATION</label>
+            <input type="text" id="interview-modal-location" class="field-input" placeholder="e.g. India, Remote" value="India" required>
+          </div>
+          <div>
+            <label class="field-label" for="interview-modal-salary">MIN SALARY EXPECTATION</label>
+            <input type="text" id="interview-modal-salary" class="field-input" placeholder="e.g. 25 LPA, $120k" value="25 LPA" required>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="padding-left:0; padding-right:0; margin-top:8px;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-interview">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-interview">
+            🚀 Save Profile &amp; Calibrate Agent
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ATS AUTOFILL VERIFICATION PROOF MODAL -->
+  <div class="modal-backdrop" id="modal-proof">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🧪</span>
+          <span>Playwright ATS Autofill Verification Proof</span>
+        </div>
+        <button type="button" class="modal-close-btn" id="modal-proof-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.5rem;">✅</span>
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #6ee7b7;">Playwright Form Filling Engine Verified</div>
+            <div style="font-size: 0.75rem; color: #cbd5e1;">Inputs matching candidate profile were automatically detected and populated.</div>
+          </div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 10px; font-size: 0.75rem; color: #fde68a; line-height: 1.4;">
+          <strong>ℹ️ Important Note on LinkedIn Sessions:</strong> Headless browsers cannot auto-submit LinkedIn applications without active candidate login session cookies. For custom ATS portals (Greenhouse, Lever, Workday, standard forms), Playwright fills all fields automatically. For LinkedIn postings, use the <em>"View Job Listing"</em> button to review and submit with your logged-in browser session.
+        </div>
+
+        <div id="proof-details" style="font-size: 0.8rem; color: #94a3b8; display: flex; flex-direction: column; gap: 4px;">
+          <div><strong>Filled Fields:</strong> <span id="proof-fields" style="color: #38bdf8;">First Name, Last Name, Email, Phone, LinkedIn</span></div>
+          <div><strong>Timestamp:</strong> <span id="proof-time" style="color: #cbd5e1;">Just now</span></div>
+        </div>
+
+        <div style="border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; overflow: hidden; background: #000;">
+          <div style="padding: 6px 10px; background: rgba(255, 255, 255, 0.05); font-size: 0.72rem; color: #9ca3af; font-family: var(--font-mono); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+            📷 Live Playwright Screenshot Capture Proof
+          </div>
+          <div style="max-height: 380px; overflow-y: auto; text-align: center; padding: 4px;">
+            <img id="proof-img" src="" alt="Playwright ATS Autofill Screenshot" style="width: 100%; height: auto; display: block; border-radius: 4px;" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-close-proof">Close Proof</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
