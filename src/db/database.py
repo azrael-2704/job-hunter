@@ -93,6 +93,19 @@ def init_db(db_path: Path = DB_PATH) -> None:
         key TEXT PRIMARY KEY,
         value_json TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS target_companies (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        domain TEXT,
+        category TEXT,
+        ats_type TEXT,
+        ats_identifier TEXT,
+        career_url TEXT,
+        location_tags_json TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT
+    );
     """)
     conn.commit()
     conn.close()
@@ -274,3 +287,94 @@ def load_all_state(db_path: Path = DB_PATH) -> dict[str, Any]:
         "outreach_queue": outreach,
         "audit_logs": logs
     }
+
+def save_target_company(company: dict[str, Any], db_path: Path = DB_PATH) -> dict[str, Any]:
+    """Inserts or updates a target company/startup."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cid = company.get("id") or f"comp-{company.get('domain', 'custom').replace('.', '-')}"
+    locs = json.dumps(company.get("location_tags", ["Remote"]))
+    cursor.execute("""
+    INSERT OR REPLACE INTO target_companies (id, name, domain, category, ats_type, ats_identifier, career_url, location_tags_json, is_active, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        cid,
+        company.get("name", "Company"),
+        company.get("domain", ""),
+        company.get("category", "Startup"),
+        company.get("ats_type", "custom"),
+        company.get("ats_identifier", ""),
+        company.get("career_url", ""),
+        locs,
+        1 if company.get("is_active", True) else 0,
+        company.get("created_at") or datetime.now(timezone.utc).isoformat()
+    ))
+    conn.commit()
+    conn.close()
+    return {**company, "id": cid}
+
+def get_target_companies(category: Optional[str] = None, active_only: bool = True, db_path: Path = DB_PATH) -> list[dict[str, Any]]:
+    """Retrieves target companies filtered by category or active status."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    query = "SELECT * FROM target_companies WHERE 1=1"
+    params = []
+    if active_only:
+        query += " AND is_active = 1"
+    if category and category.lower() != "all":
+        query += " AND LOWER(category) = LOWER(?)"
+        params.append(category)
+    query += " ORDER BY name ASC"
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    results = []
+    for r in rows:
+        d = dict(r)
+        d["location_tags"] = json.loads(d["location_tags_json"]) if d.get("location_tags_json") else []
+        results.append(d)
+    conn.close()
+    return results
+
+def seed_target_companies_if_empty(db_path: Path = DB_PATH) -> int:
+    """Seeds the 500+ curated companies into the database if target_companies table is empty."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) as count FROM target_companies")
+    count = cursor.fetchone()["count"]
+    if count > 0:
+        conn.close()
+        return count
+
+    # Load from src/data/companies_directory.json
+    data_file = Path(__file__).resolve().parents[1] / "data" / "companies_directory.json"
+    if not data_file.exists():
+        conn.close()
+        return 0
+
+    with open(data_file, "r", encoding="utf-8") as f:
+        companies = json.load(f)
+
+    for c in companies:
+        cid = c.get("id") or f"comp-{c.get('domain', 'custom').replace('.', '-')}"
+        locs = json.dumps(c.get("location_tags", ["Remote"]))
+        cursor.execute("""
+        INSERT OR REPLACE INTO target_companies (id, name, domain, category, ats_type, ats_identifier, career_url, location_tags_json, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            cid,
+            c.get("name", "Company"),
+            c.get("domain", ""),
+            c.get("category", "Startup"),
+            c.get("ats_type", "custom"),
+            c.get("ats_identifier", ""),
+            c.get("career_url", ""),
+            locs,
+            1,
+            datetime.now(timezone.utc).isoformat()
+        ))
+    conn.commit()
+    conn.close()
+    return len(companies)
+
