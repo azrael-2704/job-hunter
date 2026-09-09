@@ -137,3 +137,48 @@ def test_verify_test_form_endpoint():
     assert len(data["result"].get("filled_fields", [])) > 0
     assert data.get("screenshot_url") is not None
 
+def test_list_companies_endpoint():
+    res = client.get("/api/companies")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] >= 500
+    assert "categories" in data
+    assert "AI Startup" in data["categories"]
+    assert len(data["companies"]) > 0
+
+    # Test category filter
+    res_ai = client.get("/api/companies?category=AI Startup")
+    assert res_ai.status_code == 200
+    data_ai = res_ai.json()
+    assert len(data_ai["companies"]) > 30
+    assert all(c["category"] == "AI Startup" for c in data_ai["companies"])
+
+def test_add_company_endpoint():
+    payload = {
+        "name": "Acme AI Corp",
+        "domain": "acme.ai",
+        "category": "AI Startup",
+        "ats_type": "ashby",
+        "ats_identifier": "acme",
+        "career_url": "https://jobs.ashbyhq.com/acme"
+    }
+    res = client.post("/api/companies", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "Acme AI Corp" in data["message"]
+    assert data["company"]["domain"] == "acme.ai"
+
+def test_scan_companies_career_pages_endpoint():
+    payload = {
+        "category": "AI Startup",
+        "query": "AI Engineer",
+        "location": "India",
+        "limit": 2
+    }
+    res = client.post("/api/companies/scan", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "openings" in data
+    assert data["openings_count"] >= 0
+
+

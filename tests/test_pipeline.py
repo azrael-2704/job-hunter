@@ -34,3 +34,39 @@ def test_pipeline_execution():
     assert "qualified_queue" in final_state
     assert len(final_state["qualified_queue"]) > 0
     assert final_state["current_status"] in ["READY_FOR_APPROVAL", "JOBS_QUALIFIED"]
+
+
+def test_pipeline_direct_career_pages_execution():
+    """
+    Tests pipeline execution specifically using direct career pages (Greenhouse/Lever/Ashby).
+    """
+    pipeline = build_job_hunter_pipeline()
+
+    initial_state = {
+        "master_profile": {
+            "name": "Test Candidate",
+            "target_query": "AI Engineer",
+            "target_location": "Remote"
+        },
+        "allowed_skills": {"python", "llm", "pytorch"},
+        "discovered_queue": [],
+        "qualified_queue": [],
+        "approval_queue": [],
+        "applied_queue": [],
+        "active_job_id": None,
+        "discovery_source": "direct",
+        "current_status": "INITIALIZED",
+        "audit_logs": [],
+        "errors": []
+    }
+
+    final_state = pipeline.invoke(initial_state)
+
+    assert "discovered_queue" in final_state
+    assert len(final_state["discovered_queue"]) > 0
+    # Every job discovered should have career_page / direct application_url
+    for job in final_state["discovered_queue"]:
+        assert job.get("source") in ["direct_career_page", "career_page", "greenhouse", "lever", "ashby"] or "api" in job.get("application_url", "") or "boards" in job.get("application_url", "")
+    assert "qualified_queue" in final_state
+    assert final_state["current_status"] in ["READY_FOR_APPROVAL", "JOBS_QUALIFIED"]
+

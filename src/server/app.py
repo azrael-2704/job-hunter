@@ -67,6 +67,7 @@ class RunPipelineRequest(BaseModel):
     location: str = "India"
     min_salary: Optional[str] = "25 LPA"
     limit: int = 3
+    discovery_source: Optional[str] = "hybrid"
 
 class EnrichRequest(BaseModel):
     name: str
@@ -97,7 +98,7 @@ def get_state():
 
 @app.post("/api/run")
 def trigger_pipeline(req: RunPipelineRequest):
-    """Triggers the LangGraph pipeline with user-specified query, location, and salary expectation."""
+    """Triggers the LangGraph pipeline with user-specified query, location, salary expectation, and discovery source."""
     global PIPELINE_STATE
     pipeline = build_job_hunter_pipeline()
     
@@ -106,6 +107,7 @@ def trigger_pipeline(req: RunPipelineRequest):
     PIPELINE_STATE["master_profile"]["target_location"] = req.location
     PIPELINE_STATE["master_profile"]["min_salary"] = req.min_salary or "25 LPA"
     PIPELINE_STATE["allowed_skills"] = set(PIPELINE_STATE["allowed_skills"])
+    PIPELINE_STATE["discovery_source"] = req.discovery_source or "hybrid"
     
     # Run the graph
     updated_state = pipeline.invoke(PIPELINE_STATE)
@@ -613,6 +615,76 @@ def update_profile(req: ProfileUpdateRequest):
     return {
         "message": "Profile and Master Resume in your format successfully saved!",
         "profile": PIPELINE_STATE["master_profile"]
+    }
+
+# --- TARGET COMPANIES DIRECTORY & CAREER PAGES ENDPOINTS ---
+class AddCompanyRequest(BaseModel):
+    name: str
+    domain: str
+    category: str = "Startup"
+    ats_type: str = "custom"
+    ats_identifier: Optional[str] = ""
+    career_url: Optional[str] = ""
+    location_tags: Optional[list[str]] = ["India", "Remote"]
+
+@app.get("/api/companies")
+def list_companies_endpoint(category: Optional[str] = None):
+    """Returns target companies directory, filters, and category distribution."""
+    from src.db.database import get_target_companies, seed_target_companies_if_empty
+    seed_target_companies_if_empty()
+    companies = get_target_companies(category=category, active_only=True)
+    all_companies = get_target_companies(category=None, active_only=False)
+    
+    cat_counts = {}
+    for c in all_companies:
+        cat = c.get("category", "General")
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+        
+    return {
+        "total": len(all_companies),
+        "filtered_count": len(companies),
+        "categories": cat_counts,
+        "companies": companies
+    }
+
+@app.post("/api/companies")
+def add_company_endpoint(req: AddCompanyRequest):
+    """Adds a new target company/startup to track."""
+    from src.db.database import save_target_company
+    ident = req.ats_identifier or req.name.lower().replace(" ", "")
+    career_url = req.career_url or f"https://www.{req.domain}/careers"
+    company_data = {
+        "name": req.name,
+        "domain": req.domain,
+        "category": req.category,
+        "ats_type": req.ats_type,
+        "ats_identifier": ident,
+        "career_url": career_url,
+        "location_tags": req.location_tags or ["Remote"],
+        "is_active": True
+    }
+    saved = save_target_company(company_data)
+    save_audit_log("TARGET_COMPANY_ADDED", {"company": req.name, "domain": req.domain, "ats": req.ats_type})
+    return {"message": f"Target company '{req.name}' added successfully!", "company": saved}
+
+class ScanCareerPagesRequest(BaseModel):
+    category: Optional[str] = None
+    query: str = "AI Engineer"
+    location: str = "India"
+    limit: int = 6
+
+@app.post("/api/companies/scan")
+def scan_companies_career_pages(req: ScanCareerPagesRequest):
+    """Scans direct career pages of tracked companies on demand."""
+    from src.db.database import get_target_companies, seed_target_companies_if_empty
+    from src.discovery.career_pages import scan_career_pages
+    seed_target_companies_if_empty()
+    companies = get_target_companies(category=req.category, active_only=True)
+    openings = scan_career_pages(companies, query=req.query, location=req.location, limit=req.limit)
+    return {
+        "message": f"Scanned career pages across {len(companies)} tracked companies.",
+        "openings_count": len(openings),
+        "openings": openings
     }
 
 # Mount static web assets

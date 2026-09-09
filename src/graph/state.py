@@ -22,6 +22,7 @@ class JobHunterState(TypedDict):
     # Execution Pointers
     active_job_id: Optional[str]
     current_status: str
+    discovery_source: Optional[str]
 
     # Telemetry
     audit_logs: Annotated[list[dict[str, Any]], operator.add]

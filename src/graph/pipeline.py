@@ -12,39 +12,62 @@ from src.discovery.linkedin import search_linkedin_jobs, get_linkedin_job_detail
 
 from src.core.llm import expand_search_queries
 from src.core.salary import extract_job_salary, evaluate_salary_alignment
+from src.discovery.career_pages import scan_career_pages
+from src.db.database import get_target_companies, seed_target_companies_if_empty
 
 def discovery_node(state: JobHunterState) -> dict[str, Any]:
-    """Scrapes live jobs from LinkedIn with AI query expansion (e.g. AI Engineer -> GenAI, Agentic AI)."""
+    """
+    Discovers live jobs across direct company career pages (Greenhouse/Lever/Ashby)
+    and live LinkedIn postings with AI query expansion.
+    """
     base_query = state.get("master_profile", {}).get("target_query", "AI Engineer")
     location = state.get("master_profile", {}).get("target_location", "India")
+    source = (state.get("discovery_source") or "hybrid").lower()
     
     # 1. AI expands search query into high-intent variations
     queries_to_search = expand_search_queries(base_query)
-    print(f"\n🔍 [Node: Discovery] Target Location: '{location}' | Base Query: '{base_query}'")
+    print(f"\n🔍 [Node: Discovery] Source: '{source.upper()}' | Location: '{location}' | Base Query: '{base_query}'")
     print(f"   AI expanded query into: {queries_to_search}")
     
     collected_jobs = []
     seen_ids = set()
     
-    # Search primary and top variation
-    for q in queries_to_search[:2]:
-        print(f"   Scraping listings for: '{q}' in '{location}'...")
-        jobs = search_linkedin_jobs(query=q, location=location, limit=2)
-        for j in jobs:
+    # Mode A: Direct Company Career Pages (500+ Tracked Companies & Startups)
+    if source in ["hybrid", "direct"]:
+        print("   Scanning 500+ direct company career pages (Greenhouse, Lever, Ashby)...")
+        companies = get_target_companies(active_only=True)
+        if not companies:
+            seed_target_companies_if_empty()
+            companies = get_target_companies(active_only=True)
+            
+        direct_jobs = scan_career_pages(companies, query=base_query, location=location, limit=4)
+        for j in direct_jobs:
             jid = j.get("id")
             if jid and jid not in seen_ids:
                 seen_ids.add(jid)
-                # Ensure direct URL exists
-                if not j.get("url"):
-                    j["url"] = f"https://www.linkedin.com/jobs/view/{jid}"
                 collected_jobs.append(j)
+        print(f"   Gathered {len(direct_jobs)} direct career page openings.")
+
+    # Mode B: LinkedIn Scraper (if hybrid or linkedin)
+    if source in ["hybrid", "linkedin"]:
+        for q in queries_to_search[:2]:
+            print(f"   Scraping LinkedIn listings for: '{q}' in '{location}'...")
+            jobs = search_linkedin_jobs(query=q, location=location, limit=2)
+            for j in jobs:
+                jid = j.get("id")
+                if jid and jid not in seen_ids:
+                    seen_ids.add(jid)
+                    if not j.get("url"):
+                        j["url"] = f"https://www.linkedin.com/jobs/view/{jid}"
+                    j["source"] = "linkedin"
+                    collected_jobs.append(j)
                 
     print(f"   Total unique live jobs gathered: {len(collected_jobs)}")
     
     return {
         "discovered_queue": collected_jobs,
         "current_status": "JOBS_DISCOVERED",
-        "audit_logs": [{"event": "DISCOVERY_EXPANDED_COMPLETED", "count": len(collected_jobs), "location": location, "queries": queries_to_search[:2]}]
+        "audit_logs": [{"event": "DISCOVERY_EXPANDED_COMPLETED", "count": len(collected_jobs), "source": source, "location": location, "queries": queries_to_search[:2]}]
     }
 
 def qualification_node(state: JobHunterState) -> dict[str, Any]:
@@ -55,10 +78,12 @@ def qualification_node(state: JobHunterState) -> dict[str, Any]:
     
     for job in state.get("discovered_queue", []):
         job_id = job.get("id")
-        detail = get_linkedin_job_detail(job_id) if job_id else job
+        # Direct career page postings already contain full job description
+        is_direct = job.get("source", "").startswith("direct")
+        detail = job if is_direct else (get_linkedin_job_detail(job_id) if job_id else job)
         description = (detail.get("description") or "").lower()
         title = detail.get("title") or ""
-        job_url = detail.get("url") or job.get("url") or f"https://www.linkedin.com/jobs/view/{job_id}"
+        job_url = detail.get("url") or job.get("url") or (f"https://www.linkedin.com/jobs/view/{job_id}" if not is_direct else "")
         
         # 1. Calculate skill overlap with candidate's allowed_skills
         matches = [skill for skill in state["allowed_skills"] if skill.lower() in description]
