@@ -1,52 +1,83 @@
 {
-  "name": "Amartya Dev",
-  "title": "Senior AI Systems Engineer",
-  "email": "amartya.test@gmail.com",
-  "phone": "+91 98765 43210",
-  "location": "Bengaluru, India (Open to Remote / Relocation)",
-  "linkedin": "https://linkedin.com/in/amartya-dev",
-  "github": "https://github.com/amartya-dev",
-  "portfolio": "https://amartya.dev",
-  "summary": "Specialized in autonomous multi-agent systems, high-throughput Python backends, and deterministic LLM pipelines with zero hallucination. Proven track record in orchestrating distributed workflows and deploying containerized microservices.",
+  "name": "Amartya Anayachala",
+  "title": "AI/ML Engineer (Agentic Architecture & AI Platforms)",
+  "email": "amartya2704@gmail.com",
+  "phone": "+91 8810268750",
+  "location": "Chennai, India (Open to Bengaluru, Remote, Relocation)",
+  "linkedin": "https://linkedin.com/in/anayachala",
+  "github": "https://github.com/azrael-2704",
+  "portfolio": "https://amartyaanayachala.vercel.app",
+  "summary": "AI/ML Engineer focused on building real systems, not just calling APIs \u2014 from a filesystem-first agent OS with sandboxed execution and audited multi-agent pipelines, to converting production insurance pipelines from LLM-agentic to deterministic for 70% cost reduction. Strong foundations in RAG, fine-tuning, and agentic architecture design, with a published patent application in assistive technology.",
   "skills": [
     "Python",
-    "Docker",
     "FastAPI",
-    "PostgreSQL",
+    "Docker",
+    "LangChain",
+    "LangGraph",
+    "RAG",
+    "TensorFlow",
+    "PyTorch",
+    "scikit-learn",
+    "OpenCV",
+    "WebSockets",
+    "Twilio",
     "Redis",
-    "LangGraph"
+    "FAISS",
+    "MySQL",
+    "PostgreSQL",
+    "Firebase",
+    "Linux",
+    "Git",
+    "UiPath",
+    "Agentic Architecture",
+    "Prompt Engineering",
+    "ETL",
+    "C++",
+    "Java",
+    "AWS",
+    "NLP"
   ],
+  "raw_resume_text": "# AMARTYA ANAYACHALA\nChennai, India  |  amartya2704@gmail.com  |  +91 8810268750  |  amartyaanayachala.vercel.app  |  linkedin.com/in/anayachala  |  github.com/azrael-2704\n\n## SUMMARY\nAI/ML Engineer focused on building real systems, not just calling APIs \u2014 from a filesystem-first agent OS with sandboxed execution and audited multi-agent pipelines, to converting a production insurance pipeline from LLM-agentic to deterministic for a projected 70% cost reduction. Strong foundations in RAG, fine-tuning, and agentic architecture design, with a published patent application in assistive technology. Currently expanding AWS and containerization skills for AI-infra deployment.\n\n## WORK EXPERIENCE\n\n### Guardian India \u2014 Chennai\n**Data & AI Engineer** | June 2026 \u2013 Present\n- Leading conversion of an agentic LLM-based insurance enrollment system to a deterministic, rule-based pipeline, projecting a 70% reduction in inference cost based on current call volume and per-call pricing.\n- Introducing YAML-based routing configuration integrated with a DMN (Decision Model and Notation) engine to replace prompt-driven agent decisions with auditable, rule-based logic.\n- Building a company-wide testing platform that analyzes domain knowledge, generates test cases and test data, and automates their execution in mainframe systems.\n\n### Guardian India \u2014 Chennai\n**AI & Automation Intern** | January 2026 \u2013 June 2026\n- Built an automated test file generation system, improving testing efficiency across teams by ~50% and reducing manual effort by ~90%.\n- Delivered L2 support for enterprise UiPath bots and contributed reusable libraries to standardize and accelerate future deliveries.\n- Built a triaging agent for failed production RPA transactions. It automatically restarted ~30% of recoverable failures and analysed logs and environment state to generate root cause information for developers.\n\n### National Informatics Centre \u2014 New Delhi\n**Data Analyst Intern** | June 2024 \u2013 July 2024\n- Automated ETL and data processing pipelines in Python and SQL, reducing manual reporting workload by 20% and improving query runtimes by 10%.\n- Built prototype dashboards via Power BI for predictive analytics, integrating early-anomaly warning mechanisms for KPI deviations.\n\n## PATENTS & PUBLICATIONS\n- **Wearable Assistive Smart Glass for Visual and Hearing Impairments** \u2014 Indian Patent Application No. 202641058862 (Published May 2026, grant pending)\n\n## PROJECTS\n\n### Donna OS - Hyper-Modular Agentic Operating System\n*Next.js, React, TypeScript, Python, Firebase, Google Gemini*\n- Designed a memory system that stores agent context as structured Markdown notes instead of a vector database \u2014 using the LLM's large context window to retrieve the full memory graph directly, instead of relying on approximate nearest-neighbor search.\n- Built a sandboxed execution layer that runs LLM-generated Python and Bash scripts locally, gated by an automated safety-review step that adds just 45ms of overhead before execution is approved.\n- Built a multi-agent pipeline \u2014 a planning agent, an execution agent, a testing agent, and a safety-review agent \u2014 with per-step telemetry (latency as low as 12ms for routing, ~$0.001 cost per reasoning step) logged to Firestore for full traceability of every agent decision.\n\n### VoxCare - Voice & WhatsApp AI Receptionist\n*React, TypeScript, Python FastAPI, SignalWire, Twilio, Firebase, Google Gemini*\n- Building a multi-tenant scheduling platform for clinics \u2014 isolated clinic data, admin onboarding, and a live dashboard \u2014 where a phone call or WhatsApp message can result in a booked appointment with no staff involved.\n- Currently connecting the AI conversation layer (Gemini, via function calling) to this infrastructure so it can check calendar availability and book or cancel appointments directly from a live call or chat.\n\n### Chef's Cam - AI-Driven Recipe Discovery Platform (chefs-cam.vercel.app)\n*Python, TypeScript, LangChain, FastAPI, PostgreSQL*\n- Independently designed, built, and deployed a cloud-hosted AI platform end-to-end \u2014 RAG pipeline and ML enrichment (LangChain, Gemini API), data preprocessing, and production hosting \u2014 cutting batch processing time by 40%.\n\n### Other Projects\n- **Smart Glasses for Disabled**: Real-time YOLOv8 object detection with auditory feedback for accessibility (patent above).\n- **Opportune: JobMate**: NLP resume parser achieving 95% parsing accuracy.\n\n## SKILLS\n- **Automation & Agentic Systems**: RAG, LangChain, Agentic Architecture, LangGraph, Prompt Engineering, UiPath Automation\n- **Machine Learning & Deep Learning**: TensorFlow, PyTorch, scikit-learn, OpenCV, NLP, Model Tuning, Fine-Tuning\n- **Backend & Data**: FastAPI, WebSockets, Twilio (Voice/WhatsApp), Sandboxed Execution, Pandas, NumPy, FAISS, ETL, MySQL, PostgreSQL, Redis, NoSQL\n- **Languages & Infra**: Python, C++, Java, R, AWS, Docker, Firebase, Linux, Git\n\n## EDUCATION\n**Vellore Institute of Technology, Chennai** | 2022 \u2013 2026\nB.Tech, Computer Science & Engineering (Specialization in AI and Robotics) | CGPA: 8.75/10\nFounder, \u201cFraternity of Leaders\u201d student leadership initiative\n",
   "experience": [
     {
-      "company": "Azrael AI Systems",
-      "role": "Lead AI Systems Engineer",
-      "location": "Bengaluru, India",
-      "period": "2023 - Present",
+      "company": "Guardian India",
+      "role": "Data & AI Engineer",
+      "location": "Chennai, India",
+      "period": "June 2026 \u2013 Present",
       "bullets": [
-        "Architected deterministic multi-agent state machines using LangGraph with queue reducers, reducing task latency by 45%.",
-        "Engineered scalable backend microservices in FastAPI with PostgreSQL and Redis caching, serving 50k+ daily queries."
+        "Leading conversion of an agentic LLM-based insurance enrollment system to a deterministic rule-based pipeline (DMN/YAML), projecting 70% inference cost reduction.",
+        "Introducing YAML-based routing configuration integrated with a DMN engine to replace prompt-driven agent decisions with auditable rule-based logic.",
+        "Building a company-wide testing platform analyzing domain knowledge, generating test cases and test data, automating mainframe execution."
       ]
     },
     {
-      "company": "CloudScale Technologies",
-      "role": "Backend Software Developer",
-      "location": "Remote",
-      "period": "2021 - 2023",
+      "company": "Guardian India",
+      "role": "AI & Automation Intern",
+      "location": "Chennai, India",
+      "period": "January 2026 \u2013 June 2026",
       "bullets": [
-        "Built resilient ETL pipelines and automated scraping microservices containerized with Docker.",
-        "Optimized relational database queries and indexed large-scale data stores, achieving sub-50ms API response times."
+        "Built an automated test file generation system improving testing efficiency by ~50% and reducing manual effort by ~90%.",
+        "Delivered L2 support for enterprise UiPath bots and contributed reusable libraries.",
+        "Built a triaging agent for failed production RPA transactions restarting ~30% recoverable failures with automated log root cause analysis."
+      ]
+    },
+    {
+      "company": "National Informatics Centre (NIC)",
+      "role": "Data Analyst Intern",
+      "location": "New Delhi, India",
+      "period": "June 2024 \u2013 July 2024",
+      "bullets": [
+        "Automated ETL and data processing pipelines in Python and SQL, reducing manual reporting workload by 20% and improving query runtimes by 10%.",
+        "Built prototype Power BI dashboards for predictive analytics with early-anomaly warnings for KPI deviations."
       ]
     }
   ],
   "education": [
     {
-      "degree": "Bachelor of Technology in Computer Science & Engineering",
-      "institution": "National Institute of Technology",
-      "year": "2021"
+      "degree": "B.Tech in Computer Science & Engineering (AI and Robotics)",
+      "institution": "Vellore Institute of Technology, Chennai",
+      "year": "2022 \u2013 2026",
+      "cgpa": "8.75/10"
     }
-  ],
-  "raw_resume_text": "# AMARTYA DEV\nSenior AI Systems Engineer | Bengaluru, India\n\n## Core Competencies\nPython, FastAPI, Docker, SQL, Redis, LangGraph\n\n## Professional Experience\n### Lead AI Systems Engineer - Azrael AI Systems\n- Built autonomous multi-agent pipelines with LangGraph\n- Deployed production backend microservices in FastAPI\n",
-  "target_query": "Lead AI Engineer",
-  "target_location": "India",
-  "min_salary": "30 LPA"
+  ]
 }
