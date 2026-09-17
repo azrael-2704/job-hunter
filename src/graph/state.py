@@ -23,6 +23,8 @@ class JobHunterState(TypedDict):
     active_job_id: Optional[str]
     current_status: str
     discovery_source: Optional[str]
+    max_age_days: Optional[int]
+    only_new_daily: Optional[bool]
 
     # Telemetry
     audit_logs: Annotated[list[dict[str, Any]], operator.add]

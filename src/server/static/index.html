@@ -79,6 +79,16 @@
           </select>
         </div>
         <div class="input-group input-group-sm">
+          <label for="search-jobage">Posted Within</label>
+          <select id="search-jobage">
+            <option value="1">Past 24 Hours</option>
+            <option value="7" selected>Past 7 Days</option>
+            <option value="14">Past 14 Days</option>
+            <option value="30">Past 30 Days</option>
+            <option value="all">All Postings</option>
+          </select>
+        </div>
+        <div class="input-group input-group-sm">
           <label for="search-limit">Scrape Limit</label>
           <select id="search-limit">
             <option value="2" selected>2 Jobs</option>
@@ -86,11 +96,19 @@
             <option value="10">10 Jobs</option>
           </select>
         </div>
-        <button type="submit" id="btn-run-pipeline" class="btn btn-primary">
-          <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-          <span id="btn-run-text">Run Pipeline</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="submit" id="btn-run-pipeline" class="btn btn-primary">
+            <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span id="btn-run-text">Run Pipeline</span>
+          </button>
+          <span class="badge-agent" style="background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.4); color:#38bdf8; font-size:0.72rem; padding:5px 8px; display:inline-flex; align-items:center; gap:4px;" title="All scraped jobs are sorted strictly with newest postings first">
+            ⬇️ Latest First
+          </span>
+        </div>
+        <button type="button" id="btn-daily-sync" class="btn btn-secondary" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 182, 212, 0.2)); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; font-size: 0.82rem;" title="Runs daily incremental sync: crawls newly published jobs from the past 24 hours and ignores previously scraped jobs">
+          🔄 Daily Sync (New Today)
         </button>
         <button type="button" id="btn-verify-ats" class="btn btn-secondary" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fcd34d; font-size: 0.85rem;" title="Runs Playwright on a real form fixture to test and capture a verified filled screenshot">
           🧪 Test &amp; Verify ATS Autofill

@@ -105,6 +105,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const urlStr = item.url || item.application_url || "";
         const isDirect = ["greenhouse", "lever", "ashby", "direct_career_page", "career_page"].includes(rawSrc) || urlStr.includes("greenhouse") || urlStr.includes("lever.co") || urlStr.includes("ashbyhq");
         const srcLabel = isDirect ? `🏢 Direct ATS` : `🌐 LinkedIn`;
+        const ageBadge = item.posted_age_text ? `<span class="badge-agent" style="background:rgba(255,255,255,0.06); border:1px solid var(--border-subtle); color:#94a3b8; font-size:0.65rem; padding:2px 6px;">⏱️ ${escapeHtml(item.posted_age_text)}</span>` : "";
+        const newTodayBadge = item.is_new_today ? `<span class="badge-agent" style="background:rgba(245,158,11,0.2); border:1px solid rgba(245,158,11,0.5); color:#fbbf24; font-weight:700; font-size:0.65rem; padding:2px 6px;">✨ NEW TODAY</span>` : "";
         return `
         <div class="job-card" id="card-${safeJobId}">
           <div class="job-card-header">
@@ -114,6 +116,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span class="badge-agent" style="${isDirect ? 'background:rgba(6,182,212,0.18); border:1px solid rgba(6,182,212,0.4); color:#67e8f9;' : 'background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.4); color:#93c5fd;'} font-size:0.65rem; padding:2px 6px;">
                   ${srcLabel}
                 </span>
+                ${newTodayBadge}
+                ${ageBadge}
               </div>
               <div class="job-company">${escapeHtml(item.company || "Company")} • ${escapeHtml(item.location || "India")}</div>
             </div>
@@ -194,6 +198,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const urlStr = job.url || job.application_url || "";
         const isDirect = ["greenhouse", "lever", "ashby", "direct_career_page", "career_page"].includes(rawSrc) || urlStr.includes("greenhouse") || urlStr.includes("lever.co") || urlStr.includes("ashbyhq");
         const srcLabel = isDirect ? `🏢 Direct ATS` : `🌐 LinkedIn`;
+        const ageBadge = job.posted_age_text ? `<span class="badge-agent" style="background:rgba(255,255,255,0.06); border:1px solid var(--border-subtle); color:#94a3b8; font-size:0.65rem; padding:2px 6px;">⏱️ ${escapeHtml(job.posted_age_text)}</span>` : "";
+        const newTodayBadge = job.is_new_today ? `<span class="badge-agent" style="background:rgba(245,158,11,0.2); border:1px solid rgba(245,158,11,0.5); color:#fbbf24; font-weight:700; font-size:0.65rem; padding:2px 6px;">✨ NEW TODAY</span>` : "";
         return `
         <div class="job-card">
           <div class="job-card-header">
@@ -203,6 +209,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span class="badge-agent" style="${isDirect ? 'background:rgba(6,182,212,0.18); border:1px solid rgba(6,182,212,0.4); color:#67e8f9;' : 'background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.4); color:#93c5fd;'} font-size:0.65rem; padding:2px 6px;">
                   ${srcLabel}
                 </span>
+                ${newTodayBadge}
+                ${ageBadge}
               </div>
               <div class="job-company">${escapeHtml(job.company)} • ${escapeHtml(job.location || "India")}</div>
             </div>
@@ -276,20 +284,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const location = document.getElementById("search-location").value;
     const min_salary = document.getElementById("search-salary") ? document.getElementById("search-salary").value : "25 LPA";
     const discovery_source = document.getElementById("search-source") ? document.getElementById("search-source").value : "hybrid";
+    const jobAgeVal = document.getElementById("search-jobage") ? document.getElementById("search-jobage").value : "7";
+    const max_age_days = jobAgeVal === "all" ? null : parseInt(jobAgeVal, 10);
     const limit = parseInt(document.getElementById("search-limit").value, 10);
 
     btnRun.disabled = true;
-    btnRunText.textContent = "Scraping & Tailoring...";
-    systemStatus.textContent = `Discovering jobs (${discovery_source}) in ${location}...`;
+    btnRunText.textContent = "Scraping Latest...";
+    systemStatus.textContent = `Discovering latest jobs (${discovery_source}, past ${jobAgeVal}d) in ${location}...`;
 
     try {
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, location, min_salary, limit, discovery_source })
+        body: JSON.stringify({ query, location, min_salary, limit, discovery_source, max_age_days })
       });
       const newState = await res.json();
       renderDashboard(newState);
+      showToast(`Scrape complete! Sorted latest-first.`, "success");
     } catch (err) {
       alert("Pipeline run failed: " + err);
     } finally {
@@ -297,6 +308,38 @@ document.addEventListener("DOMContentLoaded", () => {
       btnRunText.textContent = "Run Pipeline";
     }
   });
+
+  // --- DAILY INCREMENTAL SYNC ---
+  const btnDailySync = document.getElementById("btn-daily-sync");
+  if (btnDailySync) {
+    btnDailySync.addEventListener("click", async () => {
+      const query = document.getElementById("search-query").value;
+      const location = document.getElementById("search-location").value;
+      const discovery_source = document.getElementById("search-source") ? document.getElementById("search-source").value : "hybrid";
+
+      btnDailySync.disabled = true;
+      const oldHtml = btnDailySync.innerHTML;
+      btnDailySync.innerHTML = "Syncing New Today...";
+      showToast("Running Daily Incremental Sync: discovering new postings from past 24 hours...", "info");
+
+      try {
+        const res = await fetch("/api/pipeline/daily-sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, location, discovery_source, max_age_days: 1 })
+        });
+        const data = await res.json();
+        showToast(data.message || "Daily sync completed! Added newly discovered jobs.", "success");
+        if (data.state) renderDashboard(data.state);
+        else await fetchState();
+      } catch (err) {
+        showToast("Daily sync error: " + err, "error");
+      } finally {
+        btnDailySync.disabled = false;
+        btnDailySync.innerHTML = oldHtml;
+      }
+    });
+  }
 
   // --- PROBE TOOL ---
   btnProbe.addEventListener("click", async () => {

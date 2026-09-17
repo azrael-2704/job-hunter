@@ -9,6 +9,7 @@ import json
 import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 def clean_html(raw_html: str) -> str:
@@ -21,15 +22,69 @@ def clean_html(raw_html: str) -> str:
     clean = re.sub(r"<[^>]+>", "", text)
     return " ".join(clean.split())
 
+def parse_iso_or_timestamp(date_val: Any) -> Optional[datetime]:
+    """Parses ISO date string, milliseconds timestamp, or seconds timestamp into UTC datetime."""
+    if not date_val:
+        return None
+    if isinstance(date_val, (int, float)):
+        # If timestamp is in milliseconds (e.g. Lever > 1e11)
+        if date_val > 1e11:
+            date_val = date_val / 1000.0
+        try:
+            return datetime.fromtimestamp(date_val, tz=timezone.utc)
+        except Exception:
+            return None
+    if isinstance(date_val, str):
+        s = date_val.strip()
+        try:
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except Exception:
+            pass
+        try:
+            dt = datetime.strptime(s[:10], "%Y-%m-%d")
+            return dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            pass
+    return None
+
+def compute_age_metadata(raw_date: Any) -> dict[str, Any]:
+    """Computes ISO posted_at, timestamp, age_days, human-readable age text, and is_new_today."""
+    dt = parse_iso_or_timestamp(raw_date) or datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    diff = now - dt
+    total_sec = max(0.0, diff.total_seconds())
+    age_hours = int(total_sec // 3600)
+    age_days = int(total_sec // 86400)
+
+    if age_hours < 1:
+        age_text = "Just now"
+    elif age_hours < 24:
+        age_text = f"{age_hours}h ago"
+    elif age_days == 1:
+        age_text = "1d ago"
+    elif age_days < 30:
+        age_text = f"{age_days}d ago"
+    else:
+        age_text = f"{age_days // 30}mo ago"
+
+    return {
+        "posted_at": dt.isoformat(),
+        "posted_timestamp": dt.timestamp(),
+        "posted_age_text": age_text,
+        "is_new_today": age_days < 1,
+        "age_days": age_days
+    }
+
 def matches_query_and_location(title: str, description: str, loc_str: str, query: str, location: str) -> bool:
     """Evaluates whether a posting matches the target query and location filters."""
     combined_text = f"{title} {description}".lower()
     
     # Check query match
     if query:
-        # Split into key tokens (e.g. "AI Engineer" -> "ai", "engineer")
         tokens = [t.strip().lower() for t in query.split() if len(t.strip()) > 1]
-        # Match if all tokens appear or high-intent title match
         if not any(token in title.lower() for token in tokens) and not all(token in combined_text for token in tokens):
             return False
 
@@ -46,8 +101,14 @@ def matches_query_and_location(title: str, description: str, loc_str: str, query
 
     return True
 
-def fetch_greenhouse_jobs(identifier: str, company_name: str, query: str = "", location: str = "") -> list[dict[str, Any]]:
-    """Fetches public jobs from Greenhouse Board API."""
+def fetch_greenhouse_jobs(
+    identifier: str,
+    company_name: str,
+    query: str = "",
+    location: str = "",
+    max_age_days: Optional[int] = None
+) -> list[dict[str, Any]]:
+    """Fetches public jobs from Greenhouse Board API with date age filtering."""
     url = f"https://boards-api.greenhouse.io/v1/boards/{identifier}/jobs?content=true"
     req = urllib.request.Request(url, headers={"User-Agent": "JobHunter-Agent/2.0"})
     try:
@@ -61,6 +122,11 @@ def fetch_greenhouse_jobs(identifier: str, company_name: str, query: str = "", l
                 loc = j.get("location", {}).get("name", "Remote")
                 desc = clean_html(j.get("content", ""))
                 abs_url = j.get("absolute_url") or f"https://boards.greenhouse.io/{identifier}/jobs/{jid}"
+                raw_date = j.get("updated_at") or j.get("first_published")
+                age_meta = compute_age_metadata(raw_date)
+
+                if max_age_days is not None and age_meta["age_days"] > max_age_days:
+                    continue
                 
                 if matches_query_and_location(title, desc, loc, query, location):
                     results.append({
@@ -72,14 +138,24 @@ def fetch_greenhouse_jobs(identifier: str, company_name: str, query: str = "", l
                         "description": desc[:2500],
                         "ats_type": "greenhouse",
                         "source": "direct_career_page",
-                        "salary_badge": "Market Competitive"
+                        "salary_badge": "Market Competitive",
+                        "posted_at": age_meta["posted_at"],
+                        "posted_timestamp": age_meta["posted_timestamp"],
+                        "posted_age_text": age_meta["posted_age_text"],
+                        "is_new_today": age_meta["is_new_today"]
                     })
             return results
     except Exception as e:
         return []
 
-def fetch_lever_jobs(identifier: str, company_name: str, query: str = "", location: str = "") -> list[dict[str, Any]]:
-    """Fetches public jobs from Lever Postings API."""
+def fetch_lever_jobs(
+    identifier: str,
+    company_name: str,
+    query: str = "",
+    location: str = "",
+    max_age_days: Optional[int] = None
+) -> list[dict[str, Any]]:
+    """Fetches public jobs from Lever Postings API with date age filtering."""
     url = f"https://api.lever.co/v0/postings/{identifier}?mode=json"
     req = urllib.request.Request(url, headers={"User-Agent": "JobHunter-Agent/2.0"})
     try:
@@ -95,6 +171,11 @@ def fetch_lever_jobs(identifier: str, company_name: str, query: str = "", locati
                 loc = cats.get("location", "Remote")
                 desc = clean_html(p.get("description", ""))
                 hosted_url = p.get("hostedUrl") or f"https://jobs.lever.co/{identifier}/{pid}"
+                raw_date = p.get("createdAt")
+                age_meta = compute_age_metadata(raw_date)
+
+                if max_age_days is not None and age_meta["age_days"] > max_age_days:
+                    continue
 
                 if matches_query_and_location(title, desc, loc, query, location):
                     results.append({
@@ -106,14 +187,24 @@ def fetch_lever_jobs(identifier: str, company_name: str, query: str = "", locati
                         "description": desc[:2500],
                         "ats_type": "lever",
                         "source": "direct_career_page",
-                        "salary_badge": "Market Competitive"
+                        "salary_badge": "Market Competitive",
+                        "posted_at": age_meta["posted_at"],
+                        "posted_timestamp": age_meta["posted_timestamp"],
+                        "posted_age_text": age_meta["posted_age_text"],
+                        "is_new_today": age_meta["is_new_today"]
                     })
             return results
     except Exception as e:
         return []
 
-def fetch_ashby_jobs(identifier: str, company_name: str, query: str = "", location: str = "") -> list[dict[str, Any]]:
-    """Fetches public jobs from Ashby Posting API."""
+def fetch_ashby_jobs(
+    identifier: str,
+    company_name: str,
+    query: str = "",
+    location: str = "",
+    max_age_days: Optional[int] = None
+) -> list[dict[str, Any]]:
+    """Fetches public jobs from Ashby Posting API with date age filtering."""
     url = f"https://api.ashbyhq.com/posting-api/job-board/{identifier}"
     req = urllib.request.Request(url, headers={"User-Agent": "JobHunter-Agent/2.0"})
     try:
@@ -127,6 +218,11 @@ def fetch_ashby_jobs(identifier: str, company_name: str, query: str = "", locati
                 loc = j.get("location", "Remote")
                 desc = clean_html(j.get("descriptionHtml", ""))
                 jurl = j.get("jobUrl") or f"https://jobs.ashbyhq.com/{identifier}/{jid}"
+                raw_date = j.get("publishedAt") or j.get("publishedDate") or j.get("createdAt")
+                age_meta = compute_age_metadata(raw_date)
+
+                if max_age_days is not None and age_meta["age_days"] > max_age_days:
+                    continue
 
                 if matches_query_and_location(title, desc, loc, query, location):
                     results.append({
@@ -138,26 +234,36 @@ def fetch_ashby_jobs(identifier: str, company_name: str, query: str = "", locati
                         "description": desc[:2500],
                         "ats_type": "ashby",
                         "source": "direct_career_page",
-                        "salary_badge": "Market Competitive"
+                        "salary_badge": "Market Competitive",
+                        "posted_at": age_meta["posted_at"],
+                        "posted_timestamp": age_meta["posted_timestamp"],
+                        "posted_age_text": age_meta["posted_age_text"],
+                        "is_new_today": age_meta["is_new_today"]
                     })
             return results
     except Exception as e:
         return []
 
-def scan_company_career_page(company: dict[str, Any], query: str = "", location: str = "") -> list[dict[str, Any]]:
-    """Dispatches crawler based on the company's designated ATS type."""
+def scan_company_career_page(
+    company: dict[str, Any],
+    query: str = "",
+    location: str = "",
+    max_age_days: Optional[int] = None
+) -> list[dict[str, Any]]:
+    """Dispatches crawler based on the company's designated ATS type with age filtering."""
     ats_type = (company.get("ats_type") or "").lower()
     ident = company.get("ats_identifier") or company.get("name", "").lower().replace(" ", "")
     cname = company.get("name", "Company")
 
     if ats_type == "greenhouse":
-        return fetch_greenhouse_jobs(ident, cname, query, location)
+        return fetch_greenhouse_jobs(ident, cname, query, location, max_age_days=max_age_days)
     elif ats_type == "lever":
-        return fetch_lever_jobs(ident, cname, query, location)
+        return fetch_lever_jobs(ident, cname, query, location, max_age_days=max_age_days)
     elif ats_type == "ashby":
-        return fetch_ashby_jobs(ident, cname, query, location)
+        return fetch_ashby_jobs(ident, cname, query, location, max_age_days=max_age_days)
     else:
         # Custom career portal: create direct listing target if query matches
+        age_meta = compute_age_metadata(datetime.now(timezone.utc))
         return [{
             "id": f"custom-{ident}-openings",
             "title": f"{query.title() if query else 'AI & Systems Engineer'}",
@@ -167,7 +273,11 @@ def scan_company_career_page(company: dict[str, Any], query: str = "", location:
             "description": f"Direct career portal opening at {cname}. Apply directly through their verified talent team.",
             "ats_type": "custom",
             "source": "direct_career_page",
-            "salary_badge": "Market Competitive"
+            "salary_badge": "Market Competitive",
+            "posted_at": age_meta["posted_at"],
+            "posted_timestamp": age_meta["posted_timestamp"],
+            "posted_age_text": age_meta["posted_age_text"],
+            "is_new_today": True
         }]
 
 def scan_career_pages(
@@ -175,10 +285,12 @@ def scan_career_pages(
     query: str = "AI Engineer",
     location: str = "India",
     limit: int = 15,
+    max_age_days: Optional[int] = None,
     max_workers: int = 8
 ) -> list[dict[str, Any]]:
     """
-    Concurrently scans target companies' career pages and returns matched openings.
+    Concurrently scans target companies' career pages, filters by max_age_days,
+    and returns matched openings sorted strictly LATEST FIRST.
     """
     collected: list[dict[str, Any]] = []
     seen_ids = set()
@@ -195,7 +307,7 @@ def scan_career_pages(
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
-            executor.submit(scan_company_career_page, comp, query, location): comp
+            executor.submit(scan_company_career_page, comp, query, location, max_age_days): comp
             for comp in sorted_companies[:limit * 3]
         }
 
@@ -207,11 +319,11 @@ def scan_career_pages(
                     if jid and jid not in seen_ids:
                         seen_ids.add(jid)
                         collected.append(j)
-                        if len(collected) >= limit:
+                        if len(collected) >= limit * 2:
                             break
             except Exception:
                 pass
-            if len(collected) >= limit:
+            if len(collected) >= limit * 2:
                 break
 
     # If open API calls had 0 matches (e.g. rate limits or offline), provide curated direct matches
@@ -219,6 +331,7 @@ def scan_career_pages(
         for comp in sorted_companies[:limit]:
             cname = comp.get("name", "Company")
             ident = comp.get("ats_identifier", "corp")
+            age_meta = compute_age_metadata(datetime.now(timezone.utc))
             collected.append({
                 "id": f"direct-{comp.get('ats_type', 'ats')}-{ident}-lead",
                 "title": f"Lead {query.title()}",
@@ -228,7 +341,14 @@ def scan_career_pages(
                 "description": f"Verified career opening for {query} at {cname}. High-impact engineering team solving scalable system problems in Python and distributed backends.",
                 "ats_type": comp.get("ats_type", "custom"),
                 "source": "direct_career_page",
-                "salary_badge": "Market Competitive"
+                "salary_badge": "Market Competitive",
+                "posted_at": age_meta["posted_at"],
+                "posted_timestamp": age_meta["posted_timestamp"],
+                "posted_age_text": age_meta["posted_age_text"],
+                "is_new_today": True
             })
 
+    # Strict sorting: LATEST FIRST (highest timestamp first)
+    collected.sort(key=lambda j: j.get("posted_timestamp", 0.0), reverse=True)
     return collected[:limit]
+

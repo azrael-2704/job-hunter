@@ -68,6 +68,14 @@ class RunPipelineRequest(BaseModel):
     min_salary: Optional[str] = "25 LPA"
     limit: int = 3
     discovery_source: Optional[str] = "hybrid"
+    max_age_days: Optional[int] = 7
+    only_new_daily: Optional[bool] = False
+
+class DailySyncRequest(BaseModel):
+    query: Optional[str] = "AI Engineer"
+    location: Optional[str] = "India"
+    discovery_source: Optional[str] = "hybrid"
+    max_age_days: Optional[int] = 1
 
 class EnrichRequest(BaseModel):
     name: str
@@ -98,7 +106,7 @@ def get_state():
 
 @app.post("/api/run")
 def trigger_pipeline(req: RunPipelineRequest):
-    """Triggers the LangGraph pipeline with user-specified query, location, salary expectation, and discovery source."""
+    """Triggers the LangGraph pipeline with user-specified query, location, salary expectation, discovery source, and max age."""
     global PIPELINE_STATE
     pipeline = build_job_hunter_pipeline()
     
@@ -108,6 +116,8 @@ def trigger_pipeline(req: RunPipelineRequest):
     PIPELINE_STATE["master_profile"]["min_salary"] = req.min_salary or "25 LPA"
     PIPELINE_STATE["allowed_skills"] = set(PIPELINE_STATE["allowed_skills"])
     PIPELINE_STATE["discovery_source"] = req.discovery_source or "hybrid"
+    PIPELINE_STATE["max_age_days"] = req.max_age_days if req.max_age_days is not None else 7
+    PIPELINE_STATE["only_new_daily"] = req.only_new_daily or False
     
     # Run the graph
     updated_state = pipeline.invoke(PIPELINE_STATE)
@@ -123,6 +133,42 @@ def trigger_pipeline(req: RunPipelineRequest):
     
     # Return JSON-safe dict
     return get_state()
+
+@app.post("/api/pipeline/daily-sync")
+def trigger_daily_sync(req: Optional[DailySyncRequest] = None):
+    """
+    Daily incremental crawler: fetches only newly posted roles from the past 24 hours
+    across 600+ target companies and LinkedIn, skipping already discovered jobs.
+    """
+    global PIPELINE_STATE
+    pipeline = build_job_hunter_pipeline()
+    
+    query = (req.query if req and req.query else None) or PIPELINE_STATE["master_profile"].get("target_query", "AI Engineer")
+    location = (req.location if req and req.location else None) or PIPELINE_STATE["master_profile"].get("target_location", "India")
+    source = (req.discovery_source if req and req.discovery_source else None) or "hybrid"
+    max_age = (req.max_age_days if req and req.max_age_days is not None else 1)
+    
+    PIPELINE_STATE["master_profile"]["target_query"] = query
+    PIPELINE_STATE["master_profile"]["target_location"] = location
+    PIPELINE_STATE["discovery_source"] = source
+    PIPELINE_STATE["max_age_days"] = max_age
+    PIPELINE_STATE["only_new_daily"] = True
+    
+    updated_state = pipeline.invoke(PIPELINE_STATE)
+    PIPELINE_STATE = updated_state
+    
+    for job in updated_state.get("discovered_queue", []):
+        save_job(job)
+    for app_item in updated_state.get("approval_queue", []):
+        save_tailored_application(app_item)
+    for log in updated_state.get("audit_logs", [])[-5:]:
+        save_audit_log(log.get("event", "LOG"), log)
+        
+    save_audit_log("DAILY_SYNC_COMPLETED", {"new_jobs_count": len(updated_state.get("discovered_queue", []))})
+    return {
+        "message": f"Daily sync completed: Discovered new openings from the past {max_age} day(s) sorted latest first!",
+        "state": get_state()
+    }
 
 @app.post("/api/approve/{job_id}")
 def approve_job(job_id: str):

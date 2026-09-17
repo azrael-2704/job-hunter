@@ -23,10 +23,15 @@ def discovery_node(state: JobHunterState) -> dict[str, Any]:
     base_query = state.get("master_profile", {}).get("target_query", "AI Engineer")
     location = state.get("master_profile", {}).get("target_location", "India")
     source = (state.get("discovery_source") or "hybrid").lower()
+    max_age_days = state.get("max_age_days", 7)
+    only_new_daily = state.get("only_new_daily", False)
     
+    from src.db.database import get_seen_job_ids
+    seen_db_ids = get_seen_job_ids() if only_new_daily else set()
+
     # 1. AI expands search query into high-intent variations
     queries_to_search = expand_search_queries(base_query)
-    print(f"\n🔍 [Node: Discovery] Source: '{source.upper()}' | Location: '{location}' | Base Query: '{base_query}'")
+    print(f"\n🔍 [Node: Discovery] Source: '{source.upper()}' | Location: '{location}' | Base Query: '{base_query}' | Max Age: {max_age_days}d | Daily New Only: {only_new_daily}")
     print(f"   AI expanded query into: {queries_to_search}")
     
     collected_jobs = []
@@ -34,16 +39,18 @@ def discovery_node(state: JobHunterState) -> dict[str, Any]:
     
     # Mode A: Direct Company Career Pages (500+ Tracked Companies & Startups)
     if source in ["hybrid", "direct"]:
-        print("   Scanning 500+ direct company career pages (Greenhouse, Lever, Ashby)...")
+        print(f"   Scanning 500+ direct company career pages (Greenhouse, Lever, Ashby) posted within {max_age_days} days...")
         companies = get_target_companies(active_only=True)
         if not companies:
             seed_target_companies_if_empty()
             companies = get_target_companies(active_only=True)
             
-        direct_jobs = scan_career_pages(companies, query=base_query, location=location, limit=4)
+        direct_jobs = scan_career_pages(companies, query=base_query, location=location, limit=6, max_age_days=max_age_days)
         for j in direct_jobs:
-            jid = j.get("id")
+            jid = str(j.get("id"))
             if jid and jid not in seen_ids:
+                if only_new_daily and jid in seen_db_ids:
+                    continue
                 seen_ids.add(jid)
                 collected_jobs.append(j)
         print(f"   Gathered {len(direct_jobs)} direct career page openings.")
@@ -51,23 +58,36 @@ def discovery_node(state: JobHunterState) -> dict[str, Any]:
     # Mode B: LinkedIn Scraper (if hybrid or linkedin)
     if source in ["hybrid", "linkedin"]:
         for q in queries_to_search[:2]:
-            print(f"   Scraping LinkedIn listings for: '{q}' in '{location}'...")
-            jobs = search_linkedin_jobs(query=q, location=location, limit=2)
+            print(f"   Scraping LinkedIn listings for: '{q}' in '{location}' within {max_age_days} days...")
+            jobs = search_linkedin_jobs(query=q, location=location, limit=3, max_age_days=max_age_days)
             for j in jobs:
-                jid = j.get("id")
+                jid = str(j.get("id"))
                 if jid and jid not in seen_ids:
+                    if only_new_daily and jid in seen_db_ids:
+                        continue
                     seen_ids.add(jid)
                     if not j.get("url"):
                         j["url"] = f"https://www.linkedin.com/jobs/view/{jid}"
                     j["source"] = "linkedin"
                     collected_jobs.append(j)
                 
-    print(f"   Total unique live jobs gathered: {len(collected_jobs)}")
+    # Strict Sort: LATEST FIRST (newest postings at the front of the queue)
+    collected_jobs.sort(key=lambda j: j.get("posted_timestamp", 0.0), reverse=True)
+    print(f"   Total unique live jobs gathered (Sorted Latest First): {len(collected_jobs)}")
     
     return {
         "discovered_queue": collected_jobs,
         "current_status": "JOBS_DISCOVERED",
-        "audit_logs": [{"event": "DISCOVERY_EXPANDED_COMPLETED", "count": len(collected_jobs), "source": source, "location": location, "queries": queries_to_search[:2]}]
+        "audit_logs": [{
+            "event": "DISCOVERY_EXPANDED_COMPLETED",
+            "count": len(collected_jobs),
+            "source": source,
+            "location": location,
+            "max_age_days": max_age_days,
+            "only_new_daily": only_new_daily,
+            "sorted": "LATEST_FIRST",
+            "queries": queries_to_search[:2]
+        }]
     }
 
 def qualification_node(state: JobHunterState) -> dict[str, Any]:

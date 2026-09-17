@@ -37,6 +37,8 @@ def init_db(db_path: Path = DB_PATH) -> None:
         salary_info TEXT,
         salary_badge TEXT,
         status TEXT DEFAULT 'DISCOVERED',
+        posted_at TEXT,
+        first_seen_at TEXT,
         created_at TEXT
     );
 
@@ -107,16 +109,46 @@ def init_db(db_path: Path = DB_PATH) -> None:
         created_at TEXT
     );
     """)
+    # Safe column migrations for existing databases
+    cursor.execute("PRAGMA table_info(jobs)")
+    cols = {row["name"] for row in cursor.fetchall()}
+    if "posted_at" not in cols:
+        cursor.execute("ALTER TABLE jobs ADD COLUMN posted_at TEXT")
+    if "first_seen_at" not in cols:
+        cursor.execute("ALTER TABLE jobs ADD COLUMN first_seen_at TEXT")
     conn.commit()
     conn.close()
 
+def is_job_seen(job_id: str, db_path: Path = DB_PATH) -> bool:
+    """Returns True if the job has already been scraped or stored in the database."""
+    if not job_id:
+        return False
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM jobs WHERE id = ?", (str(job_id),))
+    row = cursor.fetchone()
+    conn.close()
+    return row is not None
+
+def get_seen_job_ids(db_path: Path = DB_PATH) -> set[str]:
+    """Returns a set of all seen job IDs in the database."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM jobs")
+    rows = cursor.fetchall()
+    conn.close()
+    return {str(r["id"]) for r in rows}
+
 def save_job(job: dict[str, Any], db_path: Path = DB_PATH) -> None:
-    """Inserts or updates a discovered/qualified job."""
+    """Inserts or updates a discovered/qualified job with posting and first seen dates."""
+    now_iso = datetime.now(timezone.utc).isoformat()
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT OR REPLACE INTO jobs (id, title, company, location, url, description, fit_score, salary_info, salary_badge, status, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO jobs (
+        id, title, company, location, url, description, fit_score,
+        salary_info, salary_badge, status, posted_at, first_seen_at, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         str(job.get("id")),
         job.get("title", ""),
@@ -128,7 +160,9 @@ def save_job(job: dict[str, Any], db_path: Path = DB_PATH) -> None:
         json.dumps(job.get("salary_info", {})),
         job.get("salary_badge", ""),
         job.get("status", "DISCOVERED"),
-        job.get("created_at") or datetime.now(timezone.utc).isoformat()
+        job.get("posted_at") or job.get("created_at") or now_iso,
+        job.get("first_seen_at") or now_iso,
+        job.get("created_at") or now_iso
     ))
     conn.commit()
     conn.close()
