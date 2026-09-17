@@ -108,6 +108,17 @@ def init_db(db_path: Path = DB_PATH) -> None:
         is_active INTEGER DEFAULT 1,
         created_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS pipeline_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_type TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        status TEXT,
+        jobs_discovered INTEGER DEFAULT 0,
+        jobs_qualified INTEGER DEFAULT 0,
+        error_message TEXT
+    );
     """)
     # Safe column migrations for existing databases
     cursor.execute("PRAGMA table_info(jobs)")
@@ -411,4 +422,60 @@ def seed_target_companies_if_empty(db_path: Path = DB_PATH) -> int:
     conn.commit()
     conn.close()
     return len(companies)
+
+def record_pipeline_run_start(run_type: str = "manual", db_path: Path = DB_PATH) -> int:
+    """Logs the start of a pipeline execution and returns its tracking run ID."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO pipeline_runs (run_type, started_at, status, jobs_discovered, jobs_qualified)
+    VALUES (?, ?, 'RUNNING', 0, 0)
+    """, (run_type, datetime.now(timezone.utc).isoformat()))
+    run_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return run_id
+
+def record_pipeline_run_end(
+    run_id: int,
+    status: str = "COMPLETED",
+    jobs_discovered: int = 0,
+    jobs_qualified: int = 0,
+    error_message: Optional[str] = None,
+    db_path: Path = DB_PATH
+) -> None:
+    """Updates a completed or failed pipeline run with final metrics and status."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+    UPDATE pipeline_runs
+    SET completed_at = ?, status = ?, jobs_discovered = ?, jobs_qualified = ?, error_message = ?
+    WHERE id = ?
+    """, (datetime.now(timezone.utc).isoformat(), status, jobs_discovered, jobs_qualified, error_message, run_id))
+    conn.commit()
+    conn.close()
+
+def get_last_pipeline_run(db_path: Path = DB_PATH) -> Optional[dict[str, Any]]:
+    """Returns the most recent pipeline execution record."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT * FROM pipeline_runs
+    ORDER BY id DESC LIMIT 1
+    """)
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_pipeline_run_history(limit: int = 10, db_path: Path = DB_PATH) -> list[dict[str, Any]]:
+    """Returns historical pipeline runs ordered by most recent."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT * FROM pipeline_runs
+    ORDER BY id DESC LIMIT ?
+    """, (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 

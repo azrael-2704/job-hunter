@@ -132,6 +132,30 @@ html, body {
   border: 1px solid var(--border-subtle);
 }
 
+.scheduler-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.scheduler-icon {
+  display: inline-block;
+  animation: pulse-clock 2.5s infinite ease-in-out;
+}
+
+@keyframes pulse-clock {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
 .pulse-dot {
   width: 8px;
   height: 8px;

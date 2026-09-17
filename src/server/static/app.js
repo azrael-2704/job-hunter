@@ -1147,9 +1147,49 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Scheduler Status and Autostart Trigger
+  async function loadSchedulerStatus() {
+    try {
+      const res = await fetch("/api/scheduler/status");
+      if (!res.ok) return;
+      const data = await res.json();
+      const badgeEl = document.getElementById("scheduler-status-text");
+      if (badgeEl && data.next_scheduled_run) {
+        const nextTime = data.next_scheduled_run.next_run_time_utc;
+        const hoursUntil = data.next_scheduled_run.hours_until_next;
+        const lastRunText = data.hours_since_last_run !== null ? ` | Last: ${data.hours_since_last_run}h ago` : "";
+        badgeEl.textContent = `Cron: ${nextTime} (in ${hoursUntil}h)${lastRunText}`;
+      }
+    } catch (e) {
+      console.warn("Scheduler status fetch error:", e);
+    }
+  }
+
+  const btnTriggerAutostart = document.getElementById("btn-trigger-autostart");
+  if (btnTriggerAutostart) {
+    btnTriggerAutostart.addEventListener("click", async () => {
+      const oldHtml = btnTriggerAutostart.innerHTML;
+      btnTriggerAutostart.disabled = true;
+      btnTriggerAutostart.innerHTML = "<span>⏳ Syncing...</span>";
+      showToast("⚡ Initiating autostart sync across 600+ companies & LinkedIn...", "info");
+      try {
+        const res = await fetch("/api/scheduler/autostart", { method: "POST" });
+        const data = await res.json();
+        showToast("✅ " + data.message, "success");
+        await fetchState();
+        await loadSchedulerStatus();
+      } catch (err) {
+        showToast("Autostart error: " + err, "error");
+      } finally {
+        btnTriggerAutostart.disabled = false;
+        btnTriggerAutostart.innerHTML = oldHtml;
+      }
+    });
+  }
+
   // Initial Load
   fetchState();
   loadProfile();
   loadCompanies();
+  loadSchedulerStatus();
 });
-

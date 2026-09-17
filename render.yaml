@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: job-hunter
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn src.server.app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: CRON_HOURS
+        value: "1,13"

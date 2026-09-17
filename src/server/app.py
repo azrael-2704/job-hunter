@@ -4,10 +4,13 @@ FastAPI Server for Autonomous Job Hunter.
 Serves REST APIs for pipeline execution, human approval gates,
 recruiter email enrichment, outreach scheduling, and static Web UI.
 """
+import asyncio
+from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 from typing import Any, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Header, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,16 +21,6 @@ from src.outreach.sequencer import schedule_outreach_sequence
 from src.db.database import (
     init_db, save_job, save_tailored_application, update_tailored_application_status,
     update_tailored_email, save_outreach, save_recruiter, save_audit_log, load_all_state
-)
-
-app = FastAPI(title="Autonomous Job Hunter API", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 # In-Memory Global State for the Live Dashboard
@@ -52,7 +45,7 @@ PIPELINE_STATE: dict[str, Any] = {
     "errors": []
 }
 
-# Hydrate state from SQLite on startup
+# Initial synchronous hydration from SQLite
 try:
     init_db()
     persisted = load_all_state()
@@ -61,6 +54,45 @@ try:
             PIPELINE_STATE[queue_key] = persisted[queue_key]
 except Exception as e:
     print(f"Database hydration warning: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI Lifespan Manager:
+    1. Ensures database tables are initialized.
+    2. Checks if the pipeline has run within the past 12 hours. If not, fires a background autorun.
+    3. Starts the recurring cron worker (runs daily at 1:00 AM and 1:00 PM UTC).
+    """
+    cron_task = None
+    try:
+        from src.scheduler.cron_worker import (
+            should_trigger_startup_autorun,
+            execute_autorun_sync,
+            background_cron_loop,
+        )
+        should_run, reason, hours_since = should_trigger_startup_autorun(threshold_hours=12.0)
+        print(f"[Lifespan Startup] {reason}")
+        if should_run:
+            asyncio.create_task(execute_autorun_sync(run_type="startup_autorun"))
+        
+        cron_task = asyncio.create_task(background_cron_loop())
+    except Exception as e:
+        print(f"[Lifespan Warning] Could not start scheduler workers: {e}")
+
+    yield
+
+    if cron_task:
+        cron_task.cancel()
+
+app = FastAPI(title="Autonomous Job Hunter API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class RunPipelineRequest(BaseModel):
     query: str = "AI Engineer"
@@ -169,6 +201,75 @@ def trigger_daily_sync(req: Optional[DailySyncRequest] = None):
     save_audit_log("DAILY_SYNC_COMPLETED", {"new_jobs_count": len(updated_state.get("discovered_queue", []))})
     return {
         "message": f"Daily sync completed: Discovered new openings from the past {max_age} day(s) sorted latest first!",
+        "state": get_state()
+    }
+
+@app.get("/api/scheduler/status")
+def get_scheduler_status():
+    """
+    Returns telemetry for the scheduler:
+    - Last run details and elapsed hours
+    - Whether startup autorun is eligible (> 12 hours)
+    - Upcoming scheduled 1:00 AM / 1:00 PM run times
+    - Historical execution records
+    """
+    from src.scheduler.cron_worker import (
+        get_next_scheduled_run,
+        should_trigger_startup_autorun,
+        get_configured_cron_hours,
+    )
+    from src.db.database import get_last_pipeline_run, get_pipeline_run_history
+
+    last_run = get_last_pipeline_run()
+    should_run, reason, hours_since = should_trigger_startup_autorun(threshold_hours=12.0)
+    next_run = get_next_scheduled_run()
+
+    return {
+        "status": "active",
+        "last_run": last_run,
+        "hours_since_last_run": round(hours_since, 2) if hours_since is not None else None,
+        "should_startup_autorun": should_run,
+        "startup_autorun_reason": reason,
+        "next_scheduled_run": next_run,
+        "configured_cron_hours_utc": get_configured_cron_hours(),
+        "recent_runs": get_pipeline_run_history(limit=5),
+    }
+
+@app.api_route("/api/cron/trigger", methods=["GET", "POST"])
+async def trigger_cron_webhook(
+    request: Request,
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Autostart Webhook Endpoint for Vercel Cron, Render Webhooks, and external schedulers.
+    Validates CRON_SECRET if configured in the environment.
+    Runs an automated incremental sync across 600+ companies and LinkedIn.
+    """
+    expected_secret = os.getenv("CRON_SECRET")
+    if expected_secret:
+        provided_token = token
+        if not provided_token and authorization and authorization.startswith("Bearer "):
+            provided_token = authorization.split(" ")[1].strip()
+
+        if provided_token != expected_secret:
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing CRON_SECRET")
+
+    from src.scheduler.cron_worker import execute_autorun_sync
+    res = await execute_autorun_sync(run_type="api_webhook")
+    return {
+        "message": "Autostart webhook executed successfully!",
+        "result": res
+    }
+
+@app.post("/api/scheduler/autostart")
+async def manual_scheduler_autostart():
+    """Manual trigger of autostart sync from the web dashboard UI."""
+    from src.scheduler.cron_worker import execute_autorun_sync
+    res = await execute_autorun_sync(run_type="manual_ui")
+    return {
+        "message": "Manual autostart sync triggered!",
+        "result": res,
         "state": get_state()
     }
 
