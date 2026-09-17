@@ -1,59 +1,10 @@
-# AMARTYA ANAYACHALA
-Chennai, India  |  amartya2704@gmail.com  |  +91 8810268750  |  amartyaanayachala.vercel.app  |  linkedin.com/in/anayachala  |  github.com/azrael-2704
+# AMARTYA DEV
+Senior AI Systems Engineer | Bengaluru, India
 
-## SUMMARY
-AI/ML Engineer focused on building real systems, not just calling APIs — from a filesystem-first agent OS with sandboxed execution and audited multi-agent pipelines, to converting a production insurance pipeline from LLM-agentic to deterministic for a projected 70% cost reduction. Strong foundations in RAG, fine-tuning, and agentic architecture design, with a published patent application in assistive technology. Currently expanding AWS and containerization skills for AI-infra deployment.
+## Core Competencies
+Python, FastAPI, Docker, SQL, Redis, LangGraph
 
-## WORK EXPERIENCE
-
-### Guardian India — Chennai
-**Data & AI Engineer** | June 2026 – Present
-- Leading conversion of an agentic LLM-based insurance enrollment system to a deterministic, rule-based pipeline, projecting a 70% reduction in inference cost based on current call volume and per-call pricing.
-- Introducing YAML-based routing configuration integrated with a DMN (Decision Model and Notation) engine to replace prompt-driven agent decisions with auditable, rule-based logic.
-- Building a company-wide testing platform that analyzes domain knowledge, generates test cases and test data, and automates their execution in mainframe systems.
-
-### Guardian India — Chennai
-**AI & Automation Intern** | January 2026 – June 2026
-- Built an automated test file generation system, improving testing efficiency across teams by ~50% and reducing manual effort by ~90%.
-- Delivered L2 support for enterprise UiPath bots and contributed reusable libraries to standardize and accelerate future deliveries.
-- Built a triaging agent for failed production RPA transactions. It automatically restarted ~30% of recoverable failures and analysed logs and environment state to generate root cause information for developers.
-
-### National Informatics Centre — New Delhi
-**Data Analyst Intern** | June 2024 – July 2024
-- Automated ETL and data processing pipelines in Python and SQL, reducing manual reporting workload by 20% and improving query runtimes by 10%.
-- Built prototype dashboards via Power BI for predictive analytics, integrating early-anomaly warning mechanisms for KPI deviations.
-
-## PATENTS & PUBLICATIONS
-- **Wearable Assistive Smart Glass for Visual and Hearing Impairments** — Indian Patent Application No. 202641058862 (Published May 2026, grant pending)
-
-## PROJECTS
-
-### Donna OS - Hyper-Modular Agentic Operating System
-*Next.js, React, TypeScript, Python, Firebase, Google Gemini*
-- Designed a memory system that stores agent context as structured Markdown notes instead of a vector database — using the LLM's large context window to retrieve the full memory graph directly, instead of relying on approximate nearest-neighbor search.
-- Built a sandboxed execution layer that runs LLM-generated Python and Bash scripts locally, gated by an automated safety-review step that adds just 45ms of overhead before execution is approved.
-- Built a multi-agent pipeline — a planning agent, an execution agent, a testing agent, and a safety-review agent — with per-step telemetry (latency as low as 12ms for routing, ~$0.001 cost per reasoning step) logged to Firestore for full traceability of every agent decision.
-
-### VoxCare - Voice & WhatsApp AI Receptionist
-*React, TypeScript, Python FastAPI, SignalWire, Twilio, Firebase, Google Gemini*
-- Building a multi-tenant scheduling platform for clinics — isolated clinic data, admin onboarding, and a live dashboard — where a phone call or WhatsApp message can result in a booked appointment with no staff involved.
-- Currently connecting the AI conversation layer (Gemini, via function calling) to this infrastructure so it can check calendar availability and book or cancel appointments directly from a live call or chat.
-
-### Chef's Cam - AI-Driven Recipe Discovery Platform (chefs-cam.vercel.app)
-*Python, TypeScript, LangChain, FastAPI, PostgreSQL*
-- Independently designed, built, and deployed a cloud-hosted AI platform end-to-end — RAG pipeline and ML enrichment (LangChain, Gemini API), data preprocessing, and production hosting — cutting batch processing time by 40%.
-
-### Other Projects
-- **Smart Glasses for Disabled**: Real-time YOLOv8 object detection with auditory feedback for accessibility (patent above).
-- **Opportune: JobMate**: NLP resume parser achieving 95% parsing accuracy.
-
-## SKILLS
-- **Automation & Agentic Systems**: RAG, LangChain, Agentic Architecture, LangGraph, Prompt Engineering, UiPath Automation
-- **Machine Learning & Deep Learning**: TensorFlow, PyTorch, scikit-learn, OpenCV, NLP, Model Tuning, Fine-Tuning
-- **Backend & Data**: FastAPI, WebSockets, Twilio (Voice/WhatsApp), Sandboxed Execution, Pandas, NumPy, FAISS, ETL, MySQL, PostgreSQL, Redis, NoSQL
-- **Languages & Infra**: Python, C++, Java, R, AWS, Docker, Firebase, Linux, Git
-
-## EDUCATION
-**Vellore Institute of Technology, Chennai** | 2022 – 2026
-B.Tech, Computer Science & Engineering (Specialization in AI and Robotics) | CGPA: 8.75/10
-Founder, “Fraternity of Leaders” student leadership initiative
+## Professional Experience
+### Lead AI Systems Engineer - Azrael AI Systems
+- Built autonomous multi-agent pipelines with LangGraph
+- Deployed production backend microservices in FastAPI
