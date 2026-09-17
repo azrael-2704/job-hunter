@@ -123,7 +123,8 @@ def trigger_pipeline(req: RunPipelineRequest):
     updated_state = pipeline.invoke(PIPELINE_STATE)
     
     # Save back to global memory and SQLite
-    PIPELINE_STATE = updated_state
+    PIPELINE_STATE.clear()
+    PIPELINE_STATE.update(updated_state)
     for job in updated_state.get("discovered_queue", []):
         save_job(job)
     for app_item in updated_state.get("approval_queue", []):
@@ -155,7 +156,8 @@ def trigger_daily_sync(req: Optional[DailySyncRequest] = None):
     PIPELINE_STATE["only_new_daily"] = True
     
     updated_state = pipeline.invoke(PIPELINE_STATE)
-    PIPELINE_STATE = updated_state
+    PIPELINE_STATE.clear()
+    PIPELINE_STATE.update(updated_state)
     
     for job in updated_state.get("discovered_queue", []):
         save_job(job)

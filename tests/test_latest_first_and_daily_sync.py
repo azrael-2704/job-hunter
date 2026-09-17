@@ -125,23 +125,28 @@ def test_database_is_job_seen(tmp_path):
 def test_daily_sync_endpoint(monkeypatch):
     client = TestClient(app)
 
-    # Mock scan_career_pages to return 1 fresh job from past 1 hour
-    mock_fresh_job = {
-        "id": "fresh-job-999",
-        "title": "Fresh AI Engineer",
-        "company": "FastAI Corp",
-        "location": "India",
-        "url": "https://boards.greenhouse.io/fastai/999",
-        "description": "Python, Docker, FastAPI AI Engineer building scalable agents",
-        "ats_type": "greenhouse",
-        "source": "direct_career_page",
-        "salary_badge": "Market Rate",
-        "posted_at": datetime.now(timezone.utc).isoformat(),
-        "posted_timestamp": datetime.now(timezone.utc).timestamp(),
-        "posted_age_text": "Just now",
-        "is_new_today": True
-    }
-    monkeypatch.setattr("src.graph.pipeline.scan_career_pages", lambda *args, **kwargs: [mock_fresh_job])
+    # Mock pipeline invoke to test endpoint without consuming external Gemini quota
+    class MockPipeline:
+        def invoke(self, state):
+            state = dict(state)
+            state["discovered_queue"] = [{
+                "id": "fresh-job-999",
+                "title": "Fresh AI Engineer",
+                "company": "FastAI Corp",
+                "location": "India",
+                "url": "https://boards.greenhouse.io/fastai/999",
+                "description": "Python, Docker, FastAPI AI Engineer building scalable agents",
+                "ats_type": "greenhouse",
+                "source": "direct_career_page",
+                "salary_badge": "Market Rate",
+                "posted_at": datetime.now(timezone.utc).isoformat(),
+                "posted_timestamp": datetime.now(timezone.utc).timestamp(),
+                "posted_age_text": "Just now",
+                "is_new_today": True
+            }]
+            return state
+
+    monkeypatch.setattr("src.server.app.build_job_hunter_pipeline", lambda: MockPipeline())
 
     res = client.post("/api/pipeline/daily-sync", json={
         "query": "AI Engineer",
@@ -155,4 +160,5 @@ def test_daily_sync_endpoint(monkeypatch):
     assert "state" in data
     disc = data["state"].get("discovered_queue", [])
     assert any(j.get("id") == "fresh-job-999" for j in disc)
+
 
