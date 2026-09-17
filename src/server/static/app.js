@@ -101,11 +101,20 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       approvalList.innerHTML = state.approval_queue.map(item => {
         const safeJobId = String(item.job_id || item.id || "");
+        const rawSrc = (item.source || "").toLowerCase();
+        const urlStr = item.url || item.application_url || "";
+        const isDirect = ["greenhouse", "lever", "ashby", "direct_career_page", "career_page"].includes(rawSrc) || urlStr.includes("greenhouse") || urlStr.includes("lever.co") || urlStr.includes("ashbyhq");
+        const srcLabel = isDirect ? `🏢 Direct ATS` : `🌐 LinkedIn`;
         return `
         <div class="job-card" id="card-${safeJobId}">
           <div class="job-card-header">
             <div>
-              <div class="job-title">${escapeHtml(item.title || "Software Engineer")}</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:2px; flex-wrap:wrap;">
+                <div class="job-title">${escapeHtml(item.title || "Software Engineer")}</div>
+                <span class="badge-agent" style="${isDirect ? 'background:rgba(6,182,212,0.18); border:1px solid rgba(6,182,212,0.4); color:#67e8f9;' : 'background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.4); color:#93c5fd;'} font-size:0.65rem; padding:2px 6px;">
+                  ${srcLabel}
+                </span>
+              </div>
               <div class="job-company">${escapeHtml(item.company || "Company")} • ${escapeHtml(item.location || "India")}</div>
             </div>
             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
@@ -180,11 +189,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 4. Render Discovered/Qualified Jobs
     if (state.qualified_queue && state.qualified_queue.length > 0) {
-      qualifiedList.innerHTML = state.qualified_queue.map(job => `
+      qualifiedList.innerHTML = state.qualified_queue.map(job => {
+        const rawSrc = (job.source || "").toLowerCase();
+        const urlStr = job.url || job.application_url || "";
+        const isDirect = ["greenhouse", "lever", "ashby", "direct_career_page", "career_page"].includes(rawSrc) || urlStr.includes("greenhouse") || urlStr.includes("lever.co") || urlStr.includes("ashbyhq");
+        const srcLabel = isDirect ? `🏢 Direct ATS` : `🌐 LinkedIn`;
+        return `
         <div class="job-card">
           <div class="job-card-header">
             <div>
-              <div class="job-title">${escapeHtml(job.title)}</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:2px; flex-wrap:wrap;">
+                <div class="job-title">${escapeHtml(job.title)}</div>
+                <span class="badge-agent" style="${isDirect ? 'background:rgba(6,182,212,0.18); border:1px solid rgba(6,182,212,0.4); color:#67e8f9;' : 'background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.4); color:#93c5fd;'} font-size:0.65rem; padding:2px 6px;">
+                  ${srcLabel}
+                </span>
+              </div>
               <div class="job-company">${escapeHtml(job.company)} • ${escapeHtml(job.location || "India")}</div>
             </div>
             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
@@ -215,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </div>
         </div>
-      `).join("");
+      `;}).join("");
     }
 
     // 5. Render Outreach Sequences
@@ -256,17 +275,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const query = document.getElementById("search-query").value;
     const location = document.getElementById("search-location").value;
     const min_salary = document.getElementById("search-salary") ? document.getElementById("search-salary").value : "25 LPA";
+    const discovery_source = document.getElementById("search-source") ? document.getElementById("search-source").value : "hybrid";
     const limit = parseInt(document.getElementById("search-limit").value, 10);
 
     btnRun.disabled = true;
     btnRunText.textContent = "Scraping & Tailoring...";
-    systemStatus.textContent = `Scraping jobs in ${location}...`;
+    systemStatus.textContent = `Discovering jobs (${discovery_source}) in ${location}...`;
 
     try {
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, location, min_salary, limit })
+        body: JSON.stringify({ query, location, min_salary, limit, discovery_source })
       });
       const newState = await res.json();
       renderDashboard(newState);
@@ -854,7 +874,239 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // --- TARGET COMPANIES DIRECTORY & ATS SCANNER ---
+  let allCompanies = [];
+  let currentCompanyCategory = "all";
+  const companiesGrid = document.getElementById("companies-grid");
+  const companiesStats = document.getElementById("companies-stats-badge");
+  const companySearchInput = document.getElementById("company-search-input");
+  const categoryPillsContainer = document.getElementById("category-pills");
+  const btnOpenAddCompany = document.getElementById("btn-open-add-company");
+  const btnScanCompanies = document.getElementById("btn-scan-companies");
+  const modalCompany = document.getElementById("modal-company");
+  const modalCompanyClose = document.getElementById("modal-company-close");
+  const btnCancelCompany = document.getElementById("btn-cancel-company");
+  const formAddCompany = document.getElementById("form-add-company");
+
+  function openCompanyModal() {
+    if (modalCompany) modalCompany.classList.add("active");
+  }
+
+  function closeCompanyModal() {
+    if (modalCompany) modalCompany.classList.remove("active");
+  }
+
+  if (btnOpenAddCompany) btnOpenAddCompany.addEventListener("click", openCompanyModal);
+  if (modalCompanyClose) modalCompanyClose.addEventListener("click", closeCompanyModal);
+  if (btnCancelCompany) btnCancelCompany.addEventListener("click", closeCompanyModal);
+  if (modalCompany) {
+    modalCompany.addEventListener("click", (e) => {
+      if (e.target === modalCompany) closeCompanyModal();
+    });
+  }
+
+  async function loadCompanies() {
+    if (!companiesGrid) return;
+    try {
+      const res = await fetch("/api/companies");
+      if (!res.ok) return;
+      const data = await res.json();
+      allCompanies = data.companies || [];
+      if (companiesStats) {
+        const catCounts = data.categories || {};
+        const catSummary = Object.entries(catCounts).map(([k, v]) => `${v} ${k}`).join(" • ");
+        companiesStats.textContent = `${data.total} Tracked • ${catSummary}`;
+      }
+      renderCompanies();
+    } catch (err) {
+      console.error("Failed to load target companies:", err);
+      if (companiesGrid) companiesGrid.innerHTML = `<div class="empty-state-sm">Error loading companies: ${escapeHtml(String(err))}</div>`;
+    }
+  }
+
+  function renderCompanies() {
+    if (!companiesGrid) return;
+    const q = companySearchInput ? companySearchInput.value.trim().toLowerCase() : "";
+    
+    const filtered = allCompanies.filter(c => {
+      const matchesCat = (currentCompanyCategory === "all") || (c.category === currentCompanyCategory);
+      const matchesSearch = !q || 
+        (c.name && c.name.toLowerCase().includes(q)) || 
+        (c.domain && c.domain.toLowerCase().includes(q)) ||
+        ((c.ats_type || c.ats_platform) && (c.ats_type || c.ats_platform).toLowerCase().includes(q));
+      return matchesCat && matchesSearch;
+    });
+
+    if (filtered.length === 0) {
+      companiesGrid.innerHTML = `
+        <div class="empty-state-sm" style="grid-column: 1/-1; text-align:center; padding:30px;">
+          No target companies matched the selected filters.
+        </div>
+      `;
+      return;
+    }
+
+    companiesGrid.innerHTML = filtered.slice(0, 150).map(c => {
+      const ats = (c.ats_type || c.ats_platform || "custom").toLowerCase();
+      let badgeClass = "badge-custom";
+      if (ats === "greenhouse") badgeClass = "badge-greenhouse";
+      else if (ats === "lever") badgeClass = "badge-lever";
+      else if (ats === "ashby") badgeClass = "badge-ashby";
+
+      const catDisplay = (c.category || "").replace(/_/g, " ").toUpperCase();
+      const safeName = escapeHtml(c.name || "Company");
+      const safeDomain = escapeHtml(c.domain || "");
+      const safeUrl = escapeHtml(c.career_url || c.career_page_url || "");
+
+      return `
+        <div class="company-card">
+          <div class="company-card-header">
+            <div>
+              <div class="company-card-title">${safeName}</div>
+              <div class="company-card-domain">${safeDomain}</div>
+            </div>
+            <div class="company-card-badges">
+              <span class="${badgeClass}">${ats.toUpperCase()}</span>
+            </div>
+          </div>
+          <div>
+            <span class="badge-category">${escapeHtml(catDisplay)}</span>
+          </div>
+          <div class="company-actions">
+            <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none; font-size:0.75rem; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">
+              <span>Careers Page</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </a>
+            <button type="button" class="btn btn-primary btn-sm" onclick="scanSingleCompany('${escapeHtml(c.name)}', '${escapeHtml(ats)}')" style="font-size:0.75rem; padding:3px 10px; background:linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(6, 182, 212, 0.4)); border:1px solid rgba(99, 102, 241, 0.5);">
+              ⚡ Scan Roles
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  // Filter Pills Event Handling
+  if (categoryPillsContainer) {
+    categoryPillsContainer.addEventListener("click", (e) => {
+      const pill = e.target.closest(".category-pill");
+      if (!pill) return;
+      categoryPillsContainer.querySelectorAll(".category-pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      currentCompanyCategory = pill.dataset.category || "all";
+      renderCompanies();
+    });
+  }
+
+  if (companySearchInput) {
+    companySearchInput.addEventListener("input", () => {
+      renderCompanies();
+    });
+  }
+
+  // Add Company Form Submit
+  if (formAddCompany) {
+    formAddCompany.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("company-input-name").value.trim();
+      const domain = document.getElementById("company-input-domain").value.trim();
+      const category = document.getElementById("company-input-category").value;
+      const ats_type = document.getElementById("company-input-ats").value;
+      const career_url = document.getElementById("company-input-url").value.trim();
+      const ats_identifier = career_url.split("/").filter(Boolean).pop() || name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      const btnSub = document.getElementById("btn-submit-company");
+      btnSub.disabled = true;
+      btnSub.textContent = "Saving...";
+
+      try {
+        const res = await fetch("/api/companies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, domain, category, ats_type, career_url, ats_identifier })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Successfully tracked ${name}!`, "success");
+          closeCompanyModal();
+          formAddCompany.reset();
+          await loadCompanies();
+        } else {
+          showToast(data.detail || "Failed to add company", "error");
+        }
+      } catch (err) {
+        showToast("Error adding company: " + err, "error");
+      } finally {
+        btnSub.disabled = false;
+        btnSub.textContent = "💾 Track Company";
+      }
+    });
+  }
+
+  // Scan Active Companies / Category
+  if (btnScanCompanies) {
+    btnScanCompanies.addEventListener("click", async () => {
+      const query = document.getElementById("search-query") ? document.getElementById("search-query").value : "AI Engineer";
+      const location = document.getElementById("search-location") ? document.getElementById("search-location").value : "India";
+      
+      btnScanCompanies.disabled = true;
+      const oldHtml = btnScanCompanies.innerHTML;
+      btnScanCompanies.innerHTML = "Scanning ATS Careers...";
+
+      try {
+        showToast(`Scanning open career boards for '${query}'...`, "info");
+        const res = await fetch("/api/companies/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category: currentCompanyCategory === "all" ? null : currentCompanyCategory,
+            query,
+            location,
+            limit: 15
+          })
+        });
+        const data = await res.json();
+        showToast(`Scan complete: Found ${data.total_found} openings across ${data.scanned_boards} companies!`, "success");
+        await fetchState();
+        const qualTabBtn = document.getElementById("tab-btn-qualified");
+        if (qualTabBtn) qualTabBtn.click();
+      } catch (err) {
+        showToast("Scan error: " + err, "error");
+      } finally {
+        btnScanCompanies.disabled = false;
+        btnScanCompanies.innerHTML = oldHtml;
+      }
+    });
+  }
+
+  window.scanSingleCompany = async function(companyName, atsPlatform) {
+    const query = document.getElementById("search-query") ? document.getElementById("search-query").value : "AI Engineer";
+    const location = document.getElementById("search-location") ? document.getElementById("search-location").value : "India";
+    showToast(`Scanning ${companyName} (${atsPlatform}) for '${query}'...`, "info");
+    try {
+      const res = await fetch("/api/companies/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_name: companyName,
+          query,
+          location,
+          limit: 10
+        })
+      });
+      const data = await res.json();
+      showToast(`Scan ${companyName} finished: Found ${data.total_found} relevant openings!`, "success");
+      await fetchState();
+      const qualTabBtn = document.getElementById("tab-btn-qualified");
+      if (qualTabBtn) qualTabBtn.click();
+    } catch (err) {
+      showToast(`Scan failed for ${companyName}: ${err}`, "error");
+    }
+  };
+
   // Initial Load
   fetchState();
   loadProfile();
+  loadCompanies();
 });
+

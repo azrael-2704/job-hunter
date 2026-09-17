@@ -669,6 +669,7 @@ def add_company_endpoint(req: AddCompanyRequest):
 
 class ScanCareerPagesRequest(BaseModel):
     category: Optional[str] = None
+    company_name: Optional[str] = None
     query: str = "AI Engineer"
     location: str = "India"
     limit: int = 6
@@ -680,9 +681,30 @@ def scan_companies_career_pages(req: ScanCareerPagesRequest):
     from src.discovery.career_pages import scan_career_pages
     seed_target_companies_if_empty()
     companies = get_target_companies(category=req.category, active_only=True)
+    if req.company_name:
+        companies = [c for c in companies if req.company_name.lower() in c.get("name", "").lower()]
+
     openings = scan_career_pages(companies, query=req.query, location=req.location, limit=req.limit)
+    
+    # Ingest discovered openings into pipeline state
+    existing_ids = {str(j.get("id") or j.get("job_id")) for j in PIPELINE_STATE.get("discovered_queue", [])}
+    for op in openings:
+        if str(op.get("id")) not in existing_ids:
+            PIPELINE_STATE["discovered_queue"].append(op)
+            PIPELINE_STATE["qualified_queue"].append(op)
+            existing_ids.add(str(op.get("id")))
+
+    save_audit_log("CAREER_PAGES_SCANNED", {
+        "companies_count": len(companies),
+        "found_openings": len(openings),
+        "query": req.query,
+        "company_name": req.company_name
+    })
+
     return {
         "message": f"Scanned career pages across {len(companies)} tracked companies.",
+        "scanned_boards": len(companies),
+        "total_found": len(openings),
         "openings_count": len(openings),
         "openings": openings
     }

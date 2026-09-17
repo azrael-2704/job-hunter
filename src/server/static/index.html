@@ -70,6 +70,14 @@
           <label for="search-salary">Min Salary Expectation</label>
           <input type="text" id="search-salary" value="25 LPA" placeholder="e.g. 25 LPA, 30 LPA, $120k">
         </div>
+        <div class="input-group">
+          <label for="search-source">Discovery Source</label>
+          <select id="search-source">
+            <option value="hybrid" selected>⚡ Hybrid (LinkedIn + Direct Careers)</option>
+            <option value="direct">🏢 Direct Career Pages (Greenhouse/Lever/Ashby)</option>
+            <option value="linkedin">🌐 LinkedIn Scraper</option>
+          </select>
+        </div>
         <div class="input-group input-group-sm">
           <label for="search-limit">Scrape Limit</label>
           <select id="search-limit">
@@ -95,7 +103,7 @@
       <div class="kpi-card">
         <div class="kpi-label">Discovered</div>
         <div class="kpi-value" id="kpi-discovered">0</div>
-        <div class="kpi-sub">Live LinkedIn Scrapes</div>
+        <div class="kpi-sub">Direct ATS &amp; LinkedIn</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Qualified (Fit &ge; 60)</div>
@@ -145,11 +153,13 @@
         <div class="tabs-nav">
           <button class="tab-btn" data-tab="tab-profile" id="tab-btn-profile">📄 My Resume & Profile</button>
           <button class="tab-btn active" data-tab="tab-outreach" id="tab-btn-outreach">Outreach Sequences</button>
+          <button class="tab-btn" data-tab="tab-companies" id="tab-btn-companies">🏢 Target Companies (500+)</button>
           <button class="tab-btn" data-tab="tab-interview" id="tab-btn-interview">🎙️ Career Blueprint</button>
           <button class="tab-btn" data-tab="tab-recruiters" id="tab-btn-recruiters">Enriched Recruiters</button>
           <button class="tab-btn" data-tab="tab-qualified" id="tab-btn-qualified">Discovered Postings</button>
           <button class="tab-btn" data-tab="tab-telemetry" id="tab-btn-telemetry">Telemetry Stream</button>
         </div>
+
 
         <!-- TAB 0: CANDIDATE PROFILE & RESUME INGESTION -->
         <div class="tab-content" id="tab-profile">
@@ -240,6 +250,43 @@
         <div class="tab-content active" id="tab-outreach">
           <div id="outreach-list" class="outreach-container">
             <div class="empty-state-sm">No outreach emails scheduled yet. Approve a job to trigger automated sequence.</div>
+          </div>
+        </div>
+
+        <!-- TAB 1.2: TARGET COMPANIES & STARTUPS DIRECTORY (500+) -->
+        <div class="tab-content" id="tab-companies">
+          <div class="companies-toolbar">
+            <div class="companies-filter-row">
+              <div class="companies-search-box">
+                <input type="text" id="company-search-input" class="field-input" placeholder="🔍 Search 600+ companies (e.g. Razorpay, Anthropic, CRED, Amex)...">
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <button type="button" id="btn-open-add-company" class="btn btn-secondary btn-sm" style="background:rgba(99, 102, 241, 0.2); border:1px solid rgba(99, 102, 241, 0.4); color:#c7d2fe;">
+                  + Add Startup
+                </button>
+                <button type="button" id="btn-scan-companies" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg, #10b981, #06b6d4); border:none;">
+                  ⚡ Scan ATS Careers
+                </button>
+              </div>
+            </div>
+
+            <div class="companies-filter-row">
+              <div class="category-pills" id="category-pills">
+                <div class="category-pill active" data-category="all">All (620)</div>
+                <div class="category-pill" data-category="AI Startup">🤖 AI Startups</div>
+                <div class="category-pill" data-category="Indian Unicorn">🇮🇳 Indian Unicorns</div>
+                <div class="category-pill" data-category="Tier-1 FinTech">💳 Tier-1 FinTech</div>
+                <div class="category-pill" data-category="Big Tech">🏛️ Big Tech</div>
+                <div class="category-pill" data-category="DevTools & Cloud">☁️ DevTools &amp; Cloud</div>
+              </div>
+              <div id="companies-stats-badge" style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono);">
+                Loading directory...
+              </div>
+            </div>
+          </div>
+
+          <div id="companies-grid" class="companies-grid">
+            <div class="empty-state-sm">Loading 600+ tracked startups and companies...</div>
           </div>
         </div>
 
@@ -408,6 +455,70 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-close-proof">Close Proof</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ADD CUSTOM TARGET COMPANY MODAL -->
+  <div class="modal-backdrop" id="modal-company">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🏢</span>
+          <span>Add Target Startup / Company</span>
+        </div>
+        <button type="button" class="modal-close-btn" id="modal-company-close">&times;</button>
+      </div>
+      <form id="form-add-company" class="modal-body">
+        <p style="font-size: 0.82rem; color: #94a3b8; line-height: 1.45;">
+          Add any newly funded startup or target firm to your pipeline. Specify their ATS provider (Greenhouse, Lever, Ashby, or Workday/Custom) so the agent can continuously crawl open engineering roles without friction.
+        </p>
+
+        <div class="profile-grid-2">
+          <div>
+            <label class="field-label" for="company-input-name">Company Name</label>
+            <input type="text" id="company-input-name" class="field-input" placeholder="e.g. Cognition AI" required>
+          </div>
+          <div>
+            <label class="field-label" for="company-input-domain">Domain</label>
+            <input type="text" id="company-input-domain" class="field-input" placeholder="e.g. cognition.ai" required>
+          </div>
+        </div>
+
+        <div class="profile-grid-2">
+          <div>
+            <label class="field-label" for="company-input-category">Category</label>
+            <select id="company-input-category" class="field-input">
+              <option value="AI Startup">🤖 AI Startups &amp; Labs</option>
+              <option value="Indian Unicorn">🇮🇳 Indian Unicorns</option>
+              <option value="Tier-1 FinTech">💳 Tier-1 FinTech</option>
+              <option value="Big Tech">🏛️ Big Tech &amp; MNC</option>
+              <option value="DevTools & Cloud">☁️ DevTools &amp; Cloud</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="company-input-ats">ATS Platform</label>
+            <select id="company-input-ats" class="field-input">
+              <option value="greenhouse">Greenhouse (boards-api.greenhouse.io)</option>
+              <option value="lever">Lever (api.lever.co)</option>
+              <option value="ashby">Ashby (api.ashbyhq.com)</option>
+              <option value="workday">Workday</option>
+              <option value="custom">Custom Career Portal</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label" for="company-input-url">Careers URL or Board ID</label>
+          <input type="text" id="company-input-url" class="field-input" placeholder="e.g. https://boards.greenhouse.io/cognition or cognition" required>
+        </div>
+
+        <div class="modal-footer" style="padding-left:0; padding-right:0; margin-top:8px;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-company">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-company">
+            💾 Track Company
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
